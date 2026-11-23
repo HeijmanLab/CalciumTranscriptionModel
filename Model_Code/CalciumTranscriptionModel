@@ -1,1 +1,856 @@
-zzz
+[[model]]
+#steady state at 0.5Hz
+transcription.HDAC4_N               =  5.79599342915360860e-01
+transcription.HDAC4_C               =  7.86270637546649009e+00
+transcription.MEF2_sumo             =  1.80108448809314581e+01
+transcription.MEF2                  =  9.75839910518588205e-01
+transcription.mir1                  =  3.47602553401917476e+01
+transcription.mir1_mrnaA            =  1.80345817495759206e+01
+transcription.mir1_mrnaB            =  1.75335674925729670e+01
+transcription.mRNAA                 =  1.16608005163684982e+01
+transcription.mRNAB                 =  7.12236738196492247e+00
+transcription.proteinA              =  8.14057139179570233e-01
+transcription.proteinB              =  2.93735189320105811e-02
+transcription.Complex               =  6.66017132093524571e-03
+transcription.Inact                 =  3.56211123198007540e+00
+transcription.Act                   =  5.11294637711636968e-01
+membrane.V                          = -7.43481191769933503e+01
+fast_sodium_current_m_gate.m        =  8.81344345621538558e-03
+fast_sodium_current_h_gate.h        =  8.54448466483737068e-01
+fast_sodium_current_j_gate.j        =  8.76391655517992807e-01
+I_Kr.x_kr                           =  1.61773314023985700e-05
+I_Ks.x_ks                           =  7.02840035905416809e-03
+I_to.x_to_f                         =  1.26931146234173691e-03
+I_to.y_to_f                         =  9.49945657377764929e-01
+I_Ca.d                              =  1.86181525652340298e-05
+I_Ca.f                              =  9.98628755251036448e-01
+I_Ca.f_Ca_Bj                        =  3.74947979276832252e-02
+I_Ca.f_Ca_Bsl                       =  2.78785536694739003e-02
+SR_Fluxes.Ry_Rr                     =  8.43472450392812378e-01
+SR_Fluxes.Ry_Ro                     =  1.53989832632343289e-06
+SR_Fluxes.Ry_Ri                     =  2.85763867305081717e-07
+Na_Buffers.Na_Bj                    =  3.61868385325557318e+00
+Na_Buffers.Na_Bsl                   =  7.89696125232639434e-01
+Cytosolic_Ca_Buffers.Tn_CL          =  1.63836980161113366e-02
+Cytosolic_Ca_Buffers.Tn_CHc         =  1.25627683379275157e-01
+Cytosolic_Ca_Buffers.Tn_CHm         =  6.75622747479567333e-03
+Cytosolic_Ca_Buffers.CaM            =  6.11836650106975673e-04
+Cytosolic_Ca_Buffers.Myo_c          =  3.24370734421333944e-03
+Cytosolic_Ca_Buffers.Myo_m          =  1.36248118342598479e-01
+Cytosolic_Ca_Buffers.SRB            =  3.99870244678036772e-03
+Junctional_and_SL_Ca_Buffers.SLL_j  =  1.13948817131805311e-02
+Junctional_and_SL_Ca_Buffers.SLL_sl =  1.84729624767970974e-02
+Junctional_and_SL_Ca_Buffers.SLH_j  =  9.47366105039022799e-02
+Junctional_and_SL_Ca_Buffers.SLH_sl =  1.74535300270694610e-01
+SR_Ca_Concentrations.Csqn_b         =  1.15279791105720375e+00
+SR_Ca_Concentrations.Ca_sr          =  5.17770608648708608e-01
+Na_Concentrations.Na_j              =  9.17338531629264864e+00
+Na_Concentrations.Na_sl             =  9.17382961027481159e+00
+Na_Concentrations.Na_i              =  9.17398564566627073e+00
+K_Concentration.K_i                 = 120.0
+Ca_Concentrations.Ca_j              =  2.72636719960929073e-04
+Ca_Concentrations.Ca_sl             =  2.00620015138901675e-04
+Ca_Concentrations.Ca_i              =  1.83117199146794435e-04
+I_Na_late.I_Na_late1                =  8.81344345740304319e-03
+I_Na_late.I_Na_late2                =  5.84208080103573724e-02
+I_kur.rkur                          =  3.53437786240548264e-04
+I_kur.skur                          =  9.83215189429127889e-01
+I_k2p.ok2p                          =  2.01929636446491145e-01
+CaMK.trap                           =  4.09312912852286478e-02
+
+[transcription] 
+Prod_A = 1.30099683e+00      # Basal transcription rate of mRNAA
+Prod_B = 1.97467911e+00      # Basal transcription rate of mRNAB
+r1 = 2.93318124e-02          # Maximal rate of translation-coupled mRNAA utilization 
+r2 = 6.59837279e-02          # Maximal rate of translation-coupled mRNAB utilization  
+k1 = 3.01680000e-02          # Translation rate constant for proteinA from mRNAA
+k2 = 2.53236719e-02          # Translation rate constant for proteinB from mRNAB  
+d4 = 3.47572467e-01          # First-order degradation rate of proteinB
+kf = 7.12697556e+00          # Association rate constant for formation of the complex
+kb = 3.41741648e-02          # Dissociation rate constant of the complex
+d2 = 1.11897819e-01          # First-order degradation rate of inactive and active LTCC
+d3 = 3.59272102e-06          # First-order degradation rate of the complex
+k4 = 8.23199563e-02          # Rate constant for trafficking from inactive LTCC to active LTCC
+k5 = 4.59957045e-01          # Rate constant for trafficking from active LTCC to inactive LTCC
+d1 = 2.22420433e-01          # First-order degradation rate of proteinA
+k3 = 6.92123797e+01          # Rate constant for conversion of the complex to inactive LTCC
+ra = 1.20201575e-04          # Half-saturation constant for translation-coupled mRNAA utilization
+rb = 1.25117858e-04          # Half-saturation constant for translation-coupled mRNAB utilization
+r3 = 3.43147043e-02          # First-order degradation rate of mRNAA(scaled by alfa for miR-1-mRNAA complex)
+r4 = 6.02359509e-02          # First-order degradation rate of mRNAB(scaled by alfa for miR-1-mRNAB complex)
+alfa = 1.40000000e+00        # Scaling factor modulating degradation of miR-1-mRNA complexes             
+Prod_1 = 2.72594786e+00      # Basal transcription rate of miR-1
+d7 = 9.14349631e-02          # First-order degradation rate of miR-1
+i5 = 2.40462402e-02          # Binding affinity rate between miR-1 and mRNAA
+f_MEF2 = 5.91762743e+00      # Maximal fold increase in miR-1 transcription mediated by MEF2
+Prod_HDAC4_C = 1.06630299e+01# cytosolic HDAC4 synthesis rate
+b1 = 4.91880317e-01          # Dissociation rate of the miR-1-mRNAA complex
+yama = 4.57398508e+00        # Michaelis constant for MEF2-dependent regulation of miR-1 transcription
+Prod_MEF2 = 1.01762445e+01   # synthesis rate of MEF2
+a1 = 9.30618625e+01          # binding affinity rate between MEF2 and nuclear HDAC4
+a2 = 8.64036441e-02          # de-SUMOylation rate of SUMOylated MEF2
+c1 = 3.57338094e+00          # Michaelis constant reflecting the sensitivity of HDAC4-mediated repression of MEF2 activity
+d8 = 5.35967422e-01          # first-order degradation rate of MEF2 and SUMOylated MEF2
+d9 = 1.19026831e-01          # first-order degradation rate of cytosolic and nuclear HDAC4
+t  = 1.95000000e+00          # maximal CaMKII-dependent HDAC4 nuclear import rate 
+t1 = 1.33484504e+00          # passive nuclear efflux rate of HDAC4
+Km = 1.20000000e+01          # effective CaMKII activity producing half-maximal modulation of HDAC4 translocation
+h  = 2.00000000e+00          # Hill coefficient 
+i6 = 5.67095800e-02          # Binding affinity rate between miR-1 and mRNAB
+b6 = 7.16121452e-01          # Dissociation rate of the miR-1-mRNAB complex
+kc = 3.45606521e-01          # Half-saturation constant for complex formation
+
+conversion_factor = 1/3600000 #convert transcription model from hour to milisecond
+CaMK_effective = 0.0 + 100 * CaMK.Active 
+
+P_CaMK_HDAC4 = (t / (1 + (CaMK_effective/Km)^h)) 
+dot(HDAC4_N) = conversion_factor * (P_CaMK_HDAC4 * HDAC4_C - a1 * MEF2 * HDAC4_N / (c1 + MEF2) + a2 * MEF2_sumo - t1 * HDAC4_N - d9 * HDAC4_N)
+dot(HDAC4_C) = conversion_factor * (Prod_HDAC4_C - d9 * HDAC4_C - P_CaMK_HDAC4 * HDAC4_C + t1 * HDAC4_N)
+dot(MEF2) = conversion_factor * (Prod_MEF2 - a1 * MEF2 * HDAC4_N / (c1 + MEF2) + a2 * MEF2_sumo - d8 * MEF2)
+dot(MEF2_sumo) = conversion_factor * (a1 * MEF2 * HDAC4_N / (c1 + MEF2) - a2 * MEF2_sumo - d8 * MEF2_sumo)
+dot(mir1) = conversion_factor * (Prod_1 *(1 + f_MEF2 * MEF2 / (yama + MEF2)) - mir1 * d7 - i5 * mir1 * mRNAA - i6 * mir1 * mRNAB + b1 * mir1_mrnaA + b6 * mir1_mrnaB)
+dot(mir1_mrnaA) = conversion_factor * (i5 * mir1 * mRNAA - alfa * r3 * mir1_mrnaA - b1 * mir1_mrnaA)
+dot(mir1_mrnaB) = conversion_factor * (i6 * mir1 * mRNAB - alfa * r4 * mir1_mrnaB - b6 * mir1_mrnaB)
+dot(mRNAA) = conversion_factor * (Prod_A - r1 * mRNAA / (ra + mRNAA) - r3 * mRNAA - i5 * mir1 * mRNAA + b1 * mir1_mrnaA)
+dot(mRNAB) = conversion_factor * (Prod_B - r2 * mRNAB / (rb + mRNAB) - r4 * mRNAB - i6 * mir1 * mRNAB + b6 * mir1_mrnaB)
+dot(proteinA) = conversion_factor * (k1 * mRNAA - d1 * proteinA - kf * proteinA * proteinB + kb * Complex)
+dot(proteinB) = conversion_factor * (k2 * mRNAB - d4 * proteinB - kf * proteinA * proteinB + kb * Complex)
+dot(Complex) = conversion_factor * (kf * proteinA * proteinB / (kc + proteinA * proteinB) - kb * Complex - k3 * Complex - d3 * Complex)
+dot(Inact) = conversion_factor * (k3 * Complex - d2 * Inact - k4 * Inact + k5 * Act)
+dot(Act) = conversion_factor * (k4 * Inact - k5 * Act - d2 * Act)
+
+[I_k2p]
+
+human = 0
+Gk2p_scalar = 1.73
+Gk2p_ratio = 1.892
+I_k2p = gk2p * ok2p * (membrane.V - parameters.ek)
+#gk2p = if(parameters.AF == 0, Gk2p_scalar * 0.005*(1-parameters.AF), Gk2p_ratio * Gk2p_scalar * (0.005+(0.0095*parameters.AF)) * (1 - parameters.ik2p_block))
+gk2p = Gk2p_scalar*0.0050*(1+(Gk2p_ratio*0.0145/0.005-1)*parameters.AF)
+k2pss = 0.2 + (0.8/(1 + exp(-(membrane.V-Vmid)/14)))
+    Vmid = if(parameters.AF == 0, 10*(1-parameters.AF), if(human == 1, -5, 15)*parameters.AF)
+tauk2p = 2.0 + (40/(1 + exp(((membrane.V + 25)^2)/80)))
+dot(ok2p) = (k2pss-ok2p)/tauk2p
+
+[I_kur]
+GKur_scalar = 0.56
+Gkur = GKur_scalar * (1 + 2 * parameters.ISO) * 0.045 * (1 + 0.2 * parameters.RA * (1 - parameters.AF) - 0.5 * parameters.AF)
+xkurss = ( (1)/ ( 1 + exp( (membrane.V +6)/-8.6 ) ) )
+tauxkur = 9/(1+exp((membrane.V +5)/12.0))+0.5
+ykurss = ( (1)/ ( 1 + exp( (membrane.V +7.5)/10 ) ) )
+tauykur = 590/(1+exp((membrane.V +60)/10.0))+3050
+
+dot(rkur) = (xkurss - rkur) / tauxkur
+dot(skur) = (ykurss - skur) / tauykur
+
+I_kur = Gkur*rkur*skur*(membrane.V-parameters.ek)
+
+[I_Na_late]
+GNaL_scalar = 0.991
+#GNaL = GNaL_scalar * 0.0025 * parameters.AF
+GNaL = GNaL_scalar*(0.0005+0.0020*parameters.AF)
+aml = if(abs(membrane.V - (-47.13)) < 1e-6, (8/25) / (1/(10*exp((membrane.V+47.13)/10))), 0.32*(membrane.V +47.13)/(1-exp(-0.1*(membrane.V +47.13))))
+bml = 0.08*exp(-membrane.V/11)
+hlinf = 1/(1+exp((membrane.V +91)/6.1))
+tauhl=600
+dot(I_Na_late1) = aml*(1-I_Na_late1)-bml*I_Na_late1
+dot(I_Na_late2) = (hlinf-I_Na_late2)/tauhl
+
+I_NaL_junc = parameters.Fjunc*GNaL*I_Na_late1^3*I_Na_late2*(membrane.V-parameters.ena_junc)
+I_NaL_sl = parameters.Fsl*GNaL*I_Na_late1^3*I_Na_late2*(membrane.V-parameters.ena_sl)
+I_NaL = I_NaL_junc + I_NaL_sl
+
+[Ca_Concentrations]
+dot(Ca_i) = -SR_Fluxes.J_serca * parameters.Vsr / parameters.Vmyo - Cytosolic_Ca_Buffers.J_CaB_cytosol + parameters.J_ca_slmyo / parameters.Vmyo * (Ca_sl - Ca_i)
+    in [mM]
+dot(Ca_j) = -I_Ca_tot_junc * parameters.Cmem / (parameters.Vjunc * 2 * parameters.Frdy) + parameters.J_ca_juncsl / parameters.Vjunc * (Ca_sl - Ca_j) - Junctional_and_SL_Ca_Buffers.J_CaB_junction + SR_Fluxes.J_SRCarel * parameters.Vsr / parameters.Vjunc + SR_Fluxes.J_SRleak * parameters.Vmyo / parameters.Vjunc
+    in [mM]
+dot(Ca_sl) = -I_Ca_tot_sl * parameters.Cmem / (parameters.Vsl * 2 * parameters.Frdy) + parameters.J_ca_juncsl / parameters.Vsl * (Ca_j - Ca_sl) + parameters.J_ca_slmyo / parameters.Vsl * (Ca_i - Ca_sl) - Junctional_and_SL_Ca_Buffers.J_CaB_sl
+    in [mM]
+I_Ca_tot_junc = I_Ca.I_Ca_junc + I_CaBK.I_cabk_junc + I_PCa.I_pca_junc - 2 * I_NCX.I_ncx_junc
+    in [A/F]
+I_Ca_tot_sl = I_Ca.I_Ca_sl + I_CaBK.I_cabk_sl + I_PCa.I_pca_sl - 2 * I_NCX.I_ncx_sl
+    in [A/F]
+Ca_inano    = Ca_Concentrations.Ca_i*1E6
+Ca_i50      = Ca_Concentrations.Ca_i*0.5
+
+[CaMK]
+bound = parameters.CaMK0 * (1 - CaMK.trap) / (1 + parameters.Km_CaM / Ca_Concentrations.Ca_sl)
+dot(trap) = parameters.alpha_CaMK * CaMK.bound * (CaMK.bound + CaMK.trap) - CaMK.trap * parameters.beta_CaMK
+fixed_Active = -1
+Active = if(fixed_Active<0, CaMK.bound + CaMK.trap, fixed_Active)
+
+[Cytosolic_Ca_Buffers]
+dot(CaM) = parameters.kon_cam * Ca_Concentrations.Ca_i * (parameters.Bmax_CaM - CaM) - parameters.koff_cam * CaM
+    in [mM]
+J_CaB_cytosol = dot(Tn_CL)+dot(Tn_CHm)+dot(Tn_CHc)+dot(CaM)+dot(Myo_c)+dot(Myo_m)+dot(SRB)#parameters.kon_tncl * Ca_Concentrations.Ca_i * (parameters.Bmax_TnClow - Tn_CL) - parameters.koff_tncl * Tn_CL + parameters.kon_tnchca * Ca_Concentrations.Ca_i * (parameters.Bmax_TnChigh - Tn_CHc - Tn_CHm) - parameters.koff_tnchca * Tn_CHc + parameters.kon_tnchmg * parameters.Mgi * (parameters.Bmax_TnChigh - Tn_CHc - Tn_CHm) - parameters.koff_tnchmg * Tn_CHm + parameters.kon_cam * Ca_Concentrations.Ca_i * (parameters.Bmax_CaM - CaM) - parameters.koff_cam * CaM + parameters.kon_myoca * Ca_Concentrations.Ca_i * (parameters.Bmax_myosin - Myo_c - Myo_m) - parameters.koff_myoca * Myo_c + parameters.kon_myomg * parameters.Mgi * (parameters.Bmax_myosin - Myo_c - Myo_m) - parameters.koff_myomg * Myo_m + (parameters.kon_sr * Ca_Concentrations.Ca_i * (parameters.Bmax_SR - SRB) - parameters.koff_sr * SRB)
+    in [mM/ms]
+dot(Myo_c) = parameters.kon_myoca * Ca_Concentrations.Ca_i * (parameters.Bmax_myosin - Myo_c - Myo_m) - parameters.koff_myoca * Myo_c
+    in [mM]
+dot(Myo_m) = parameters.kon_myomg * parameters.Mgi * (parameters.Bmax_myosin - Myo_c - Myo_m) - parameters.koff_myomg * Myo_m
+    in [mM]
+dot(SRB) = parameters.kon_sr * Ca_Concentrations.Ca_i * (parameters.Bmax_SR - SRB) - parameters.koff_sr * SRB
+    in [mM]
+dot(Tn_CHc) = parameters.kon_tnchca * Ca_Concentrations.Ca_i * (parameters.Bmax_TnChigh - Tn_CHc - Tn_CHm) - parameters.koff_tnchca * Tn_CHc
+    in [mM]
+dot(Tn_CHm) = parameters.kon_tnchmg * parameters.Mgi * (parameters.Bmax_TnChigh - Tn_CHc - Tn_CHm) - parameters.koff_tnchmg * Tn_CHm
+    in [mM]
+dot(Tn_CL) = parameters.kon_tncl * Ca_Concentrations.Ca_i * (parameters.Bmax_TnClow - Tn_CL) - parameters.koff_tncl * Tn_CL
+    in [mM]
+
+[I_Ca]
+#flag of using transcription regulation or not.
+I_Ca_scalar = 1 #calcium channel blocker 
+use_transcription_reg = 1
+ref_transcription_Act = 5.11294637711636968e-01
+ICaL_fact_transcription = if(use_transcription_reg > 0, transcription.Act/ref_transcription_Act, 1)
+ICaL_fact = if(parameters.useSchmidt2015Remodeling < 1, ICaL_fact_transcription, 0.65 * ICaL_fact_transcription) # 0.65 from Circulation 2015
+I_Ca = I_Ca_junc + I_Ca_sl      
+    in [A/F]
+I_CaK = I_Ca_scalar * (ICaL_fact * ibark * d * f * (parameters.Fjunc_CaL * (fcaCaj + (1 - f_Ca_Bj)) + parameters.Fsl_CaL * (fcaCaMSL + (1 - f_Ca_Bsl))) * parameters.Q10CaL ^ parameters.Qpow * 0.45 * 1)
+    in [A/F]
+I_CaNa = I_Ca_scalar * (I_CaNa_junc + I_CaNa_sl)
+    in [A/F]
+I_CaNa_junc = I_Ca_scalar * (ICaL_fact * parameters.Fjunc_CaL * ibarna_j * d * f * (1 - f_Ca_Bj + fcaCaj) * parameters.Q10CaL ^ parameters.Qpow * 0.45 * 1)
+    in [A/F]
+I_CaNa_sl = I_Ca_scalar * (ICaL_fact * parameters.Fsl_CaL * ibarna_sl * d * f * (1 - f_Ca_Bsl + fcaCaMSL) * parameters.Q10CaL ^ parameters.Qpow * 0.45 * 1)
+    in [A/F]
+I_Ca_junc = I_Ca_scalar * (ICaL_fact * parameters.Fjunc_CaL * ibarca_j * d * f * (1 - f_Ca_Bj + fcaCaj) * parameters.Q10CaL ^ parameters.Qpow * 0.45 * 1)
+    in [A/F]
+I_Ca_sl = I_Ca_scalar * (ICaL_fact * parameters.Fsl_CaL * ibarca_sl * d * f * (1 - f_Ca_Bsl + fcaCaMSL) * parameters.Q10CaL ^ parameters.Qpow * 0.45 * 1)
+    in [A/F]
+I_Ca_tot = I_Ca + I_CaK + I_CaNa
+    in [A/F]
+dot(d) = (dss - d) / taud
+    in [1]
+dss = 1/(1+exp(-(membrane.V+Vmid)/hillv)) 
+    Vmid = 9 
+    hillv = 6 
+    in [1]   # Circulation 2015
+dot(f) = (fss - f) / tauf
+    in [1]
+dot(f_Ca_Bj) = 1.7 [mS/uF] * Ca_Concentrations.Ca_j * (1 - f_Ca_Bj) - 0.0119 [mS/uF] * f_Ca_Bj
+    in [1]
+dot(f_Ca_Bsl) = 1.7 [mS/uF] * Ca_Concentrations.Ca_sl * (1 - f_Ca_Bsl) - 0.0119 [mS/uF] * f_Ca_Bsl
+    in [1]
+fcaCaMSL = 0
+    in [1]
+fcaCaj = 0
+    in [1]
+fss = 1/(1+exp((membrane.V+30)/7))+0.2/(1+exp((50-membrane.V)/20))
+    in [1]
+ibarca_j = if(abs(membrane.V ) < 1e-5, -2.2922e-008, parameters.pCa * 4 [g*m^4/s^4/A^2 (100000)] * membrane.V * parameters.Frdy * parameters.FoRT * (0.341 * Ca_Concentrations.Ca_j * exp(2 * membrane.V * parameters.FoRT) - 0.341 * parameters.Cao) / (exp(2 * membrane.V * parameters.FoRT) - 1))
+    in [A/F]
+ibarca_sl = if(abs(membrane.V ) < 1e-5, -2.2922e-008, parameters.pCa * 4 [g*m^4/s^4/A^2 (100000)]  * membrane.V * parameters.Frdy * parameters.FoRT * (0.341 * Ca_Concentrations.Ca_sl * exp(2 * membrane.V * parameters.FoRT) - 0.341 * parameters.Cao) / (exp(2 * membrane.V * parameters.FoRT) - 1))
+    in [A/F]
+ibark = if(abs(membrane.V ) < 1e-5, -2.2922e-008, parameters.pK * membrane.V * parameters.Frdy * parameters.FoRT * (0.75 [g*m^4/s^4/A^2 (100000)] * K_Concentration.K_i * exp(membrane.V * parameters.FoRT) - 0.75 [g*m^4/s^4/A^2 (100000)] * parameters.Ko) / (exp(membrane.V * parameters.FoRT) - 1))
+    in [A/F]
+ibarna_j = if(abs(membrane.V ) < 1e-5, -2.2922e-008, parameters.pNa * membrane.V * parameters.Frdy * parameters.FoRT * (0.75 [g*m^4/s^4/A^2 (100000)] * Na_Concentrations.Na_j * exp(membrane.V * parameters.FoRT) - 0.75 [g*m^4/s^4/A^2 (100000)] * parameters.Nao) / (exp(membrane.V * parameters.FoRT) - 1))
+    in [A/F]
+ibarna_sl = if(abs(membrane.V ) < 1e-5, -2.2922e-008, parameters.pNa * membrane.V * parameters.Frdy * parameters.FoRT * (0.75 [g*m^4/s^4/A^2 (100000)] * Na_Concentrations.Na_sl * exp(membrane.V * parameters.FoRT) - 0.75 [g*m^4/s^4/A^2 (100000)] * parameters.Nao) / (exp(membrane.V * parameters.FoRT) - 1))
+    in [A/F]
+taud = if(abs(membrane.V + 9) < 1e-5,(dss / (6 * exp((membrane.V + 9) / 6))) / 0.035 , dss * (1 - exp(-(membrane.V + 9) / 6)) / (0.035 * (membrane.V + 9)))
+    in [ms]
+tauf = 1/(0.0197*exp( -(0.0337*(membrane.V+25))^2 )+0.02)#1 [ms] / (0.0197 * exp(-(0.0337 [1/mV] * (membrane.V + 14.5 [mV])) ^ 2) + 0.02)
+    in [ms]
+
+[I_CaBK]
+GCaB = if(parameters.AF == 0, parameters.GCaB, 2.919 * parameters.GCaB)
+
+I_cabk = I_cabk_junc + I_cabk_sl
+    in [A/F]
+I_cabk_junc = if(parameters.AF == 1, 1.5 * parameters.Fjunc * GCaB * (membrane.V - parameters.eca_junc), parameters.Fjunc * GCaB * (membrane.V - parameters.eca_junc))
+    in [A/F]
+I_cabk_sl = if(parameters.AF == 1, 1.5 * parameters.Fsl * GCaB * (membrane.V - parameters.eca_sl), parameters.Fsl * GCaB * (membrane.V - parameters.eca_sl))
+    in [A/F]
+
+[I_ClCa]
+I_ClCa = (I_ClCa_junc + I_ClCa_sl)
+    in [A/F]
+I_ClCa_junc = parameters.Fjunc * parameters.GClCa / (1 + parameters.KdClCa / Ca_Concentrations.Ca_j) * (membrane.V - parameters.ecl)
+    in [A/F]
+I_ClCa_sl = parameters.Fsl * parameters.GClCa / (1 + parameters.KdClCa / Ca_Concentrations.Ca_sl) * (membrane.V - parameters.ecl)
+    in [A/F]  
+ 
+I_Clbk = parameters.GClB * (membrane.V - parameters.ecl)
+    in [A/F]
+
+[I_Ki]
+Na_observed = Na_Concentrations.Na_sl
+aki_sl = (0.1+0.9/(1+(Na_Concentrations.Na_sl/7)^2))*1/(1+exp(0.2385*(membrane.V-parameters.ek-59.215)))
+aki_j = (0.1+0.9/(1+(Na_Concentrations.Na_j/7)^2))*1/(1+exp(0.2385*(membrane.V-parameters.ek-59.215)))
+bki = (0.49124*exp(0.08032*(membrane.V-parameters.ek + 5.476))+exp(0.06175*(membrane.V-parameters.ek-594.31)))/(1+exp(-0.5143*(membrane.V-parameters.ek + 4.753)))
+
+g_ki = 1.0845 * (1 + 1.4683 * parameters.AF) * (2.1 * 0.0525 * sqrt(parameters.Ko/5.4))
+I_ki_sl = parameters.Fsl * g_ki * aki_sl/(aki_sl+bki) * (membrane.V-parameters.ek)
+I_ki_j = parameters.Fjunc * g_ki * aki_j/(aki_j+bki) * (membrane.V-parameters.ek)
+I_ki = I_ki_j + I_ki_sl
+
+[I_KACh]
+Na_observed = Na_Concentrations.Na_sl
+IKAchB = 0
+GKACh = 0.05 * (1 + parameters.AF)
+Act = Constitutive_Frac + (1 - Constitutive_Frac) * parameters.CCh / (parameters.CCh + 0.125)
+Constitutive_Frac = 0.0 # Set to determine constitutive IKACh fraction
+Na_dep = if(parameters.AF == 0, (1 + 1.50 / (1 + (9.0 / Na_observed)^4))*(1-parameters.AF), 1*parameters.AF) 
+IKACh = (1 - IKAchB) * GKACh * Na_dep * Act * (0.055 + 0.40 / (1 + exp((membrane.V-parameters.ek + 9.53) / 17.18))) * (membrane.V-parameters.ek) * sqrt(parameters.Ko/5.4)
+
+[I_Kp]
+I_kp = (I_kp_junc + I_kp_sl)
+    in [A/F]
+I_kp_junc = parameters.Fjunc * parameters.gkp * kp_kp * (membrane.V - parameters.ek)
+    in [A/F]
+I_kp_sl = parameters.Fsl * parameters.gkp * kp_kp * (membrane.V - parameters.ek)
+    in [A/F]
+kp_kp = 1 / (1 + exp(7.488 - membrane.V / 5.98 [mV]))
+    in [1]
+
+[I_Kr]
+GKr_scalar = 0.822 
+I_kr = gkr * x_kr * rkr * (membrane.V - parameters.ek)
+    in [A/F]
+gkr_factor=1
+gkr = GKr_scalar * gkr_factor*0.035 [mS/uF] * sqrt(parameters.Ko / 5.4 [mM])
+    in [mS/uF]
+rkr = 1 / (1 + exp((membrane.V + 74 [mV]) / 24 [mV]))
+    in [1]
+tauxr = 550 / (1 + exp((-22 [mV] - membrane.V) / 9 [mV])) * 6 [ms] / (1 + exp((membrane.V + 11 [mV]) / 9 [mV])) + 230 [ms] / (1 + exp((membrane.V + 40 [mV]) / 20 [mV]))
+    in [ms]
+dot(x_kr) = (xrss - x_kr) / tauxr
+    in [1]
+xrss = 1 / (1 + exp(-(membrane.V + 10 [mV]) / 5 [mV]))
+    in [1]
+
+[I_Ks]
+
+GKs_scalar = 0.402
+I_ks = (I_ks_junc + I_ks_sl)
+    in [A/F]
+I_ks_junc = parameters.Fjunc * gks_junc * x_ks ^ 2 * (membrane.V - eks)
+    in [A/F]
+I_ks_sl = parameters.Fsl * gks_sl * x_ks ^ 2 * (membrane.V - eks)
+    in [A/F]
+eks = 1 / parameters.FoRT * log((parameters.Ko + parameters.pNaK * parameters.Nao) / (K_Concentration.K_i + parameters.pNaK * Na_Concentrations.Na_i))
+    in [mV]
+gks_junc = GKs_scalar * 1*(1+1*parameters.AF)*0.0035*1
+    in [mS/uF]
+gks_sl = GKs_scalar * 1*(1+1*parameters.AF)*0.0035*1
+    in [mS/uF]
+tauxs = 990.1 [ms] / (1 + exp(-(membrane.V + 2.436 [mV]) / 14.12 [mV]))
+    in [ms]
+dot(x_ks) = (xsss - x_ks) / tauxs
+    in [1]
+xsss = 1 / (1 + exp(-(membrane.V + 3.8 [mV]) / 14.25 [mV]))
+    in [1]
+
+[I_NCX]
+block_ncx=1 
+
+I_ncx = I_ncx_junc + I_ncx_sl
+    in [A/F]
+I_ncx_junc = block_ncx * parameters.Fjunc * parameters.IbarNCX * parameters.Q10NCX ^ parameters.Qpow * Ka_junc * (s1_junc - s2_junc) / s3_junc / (1 + parameters.ksat * exp((parameters.nu - 1) * membrane.V * parameters.FoRT))
+    in [A/F]
+I_ncx_sl = block_ncx * parameters.Fsl * parameters.IbarNCX * parameters.Q10NCX ^ parameters.Qpow * Ka_sl * (s1_sl - s2_sl) / s3_sl / (1 + parameters.ksat * exp((parameters.nu - 1) * membrane.V * parameters.FoRT))
+    in [A/F]
+Ka_junc = 1 / (1 + (parameters.Kdact / Ca_Concentrations.Ca_j) ^ 2)
+    in [1]
+Ka_sl = 1 / (1 + (parameters.Kdact / Ca_Concentrations.Ca_sl) ^ 2)
+    in [1]
+s1_junc = exp(parameters.nu * membrane.V * parameters.FoRT) * Na_Concentrations.Na_j ^ 3 * parameters.Cao
+    in [mol^4/m^12]
+s1_sl = exp(parameters.nu * membrane.V * parameters.FoRT) * Na_Concentrations.Na_sl ^ 3 * parameters.Cao
+    in [mol^4/m^12]
+s2_junc = exp((parameters.nu - 1) * membrane.V * parameters.FoRT) * parameters.Nao ^ 3 * Ca_Concentrations.Ca_j
+    in [mol^4/m^12]
+s2_sl = exp((parameters.nu - 1) * membrane.V * parameters.FoRT) * parameters.Nao ^ 3 * Ca_Concentrations.Ca_sl
+    in [mol^4/m^12]
+s3_junc = parameters.KmCai * parameters.Nao ^ 3 * (1 + (Na_Concentrations.Na_j / parameters.KmNai) ^ 3) + parameters.KmNao ^ 3 * Ca_Concentrations.Ca_j * (1 + Ca_Concentrations.Ca_j / parameters.KmCai) + parameters.KmCao * Na_Concentrations.Na_j ^ 3 + Na_Concentrations.Na_j ^ 3 * parameters.Cao + parameters.Nao ^ 3 * Ca_Concentrations.Ca_j
+    in [mol^4/m^12]
+s3_sl = parameters.KmCai * parameters.Nao ^ 3 * (1 + (Na_Concentrations.Na_sl / parameters.KmNai) ^ 3) + parameters.KmNao ^ 3 * Ca_Concentrations.Ca_sl * (1 + Ca_Concentrations.Ca_sl / parameters.KmCai) + parameters.KmCao * Na_Concentrations.Na_sl ^ 3 + Na_Concentrations.Na_sl ^ 3 * parameters.Cao + parameters.Nao ^ 3 * Ca_Concentrations.Ca_sl
+    in [mol^4/m^12]
+ 
+
+[I_Na]
+E_Na_j = parameters.R * parameters.Temp / parameters.Frdy * log(parameters.Nao / Na_Concentrations.Na_j)
+    in [mV]
+E_Na_sl = parameters.R * parameters.Temp / parameters.Frdy * log(parameters.Nao / Na_Concentrations.Na_sl)
+g_Na = 0.999 * 9 * (1 - 0.1 * parameters.AF) 
+I_Na_junc = Ina_scalar * parameters.Fjunc * g_Na * fast_sodium_current_m_gate.m ^ 3 * fast_sodium_current_h_gate.h * fast_sodium_current_j_gate.j * (membrane.V - E_Na_j)
+    in [pA]
+I_Na_sl = Ina_scalar * (1 - parameters.Fjunc) * g_Na * fast_sodium_current_m_gate.m ^ 3 * fast_sodium_current_h_gate.h * fast_sodium_current_j_gate.j * (membrane.V - E_Na_sl)
+I_Na_tot = I_Na_junc + I_Na_sl
+ 
+Ina_scalar = 1.15 
+
+[fast_sodium_current_h_gate]
+alpha_h = piecewise(membrane.V < -40 [mV], 0.135 [mS/uF] * exp((membrane.V + 80 [mV]) / -6.8 [mV]), 0 [mS/uF])
+    in [mS/uF]
+beta_h = piecewise(membrane.V < -40 [mV], 3.56 [mS/uF] * exp(0.079 [1/mV] * membrane.V) + 310000 [mS/uF] * exp(0.35 [1/mV] * membrane.V), 1 / (0.13 [ms] * (1 + exp((membrane.V + 10.66 [mV]) / -11.1 [mV]))))
+    in [mS/uF]
+dot(h) = (h_inf - h) / tau_h
+    in [1]
+h_inf = alpha_h / (alpha_h + beta_h)
+    in [1]
+tau_h = 1 / (alpha_h + beta_h)
+    in [ms]
+
+[fast_sodium_current_j_gate]
+alpha_j = piecewise(membrane.V < -40 [mV], (-127140 [1/mV/ms] * exp(0.2444 [1/mV] * membrane.V) - 3.474E-5 [1/mV/ms] * exp(-0.04391 [1/mV] * membrane.V)) * (membrane.V + 37.78 [mV]) / (1 + exp(0.311 [1/mV] * (membrane.V + 79.23 [mV]))), 0 [mS/uF])
+    in [mS/uF]
+beta_j = piecewise(membrane.V < -40 [mV], 0.1212 [mS/uF] * exp(-0.01052 [1/mV] * membrane.V) / (1 + exp(-0.1378 [1/mV] * (membrane.V + 40.14 [mV]))), 0.3 [mS/uF] * exp(-2.535E-7 [1/mV] * membrane.V) / (1 + exp(-0.1 [1/mV] * (membrane.V + 32 [mV]))))
+    in [mS/uF]
+dot(j) = (j_inf - j) / tau_j
+    in [1]
+j_inf = alpha_j / (alpha_j + beta_j)
+    in [1]
+tau_j = 1 / (alpha_j + beta_j)
+    in [ms]
+
+[fast_sodium_current_m_gate]
+alpha_m = piecewise(membrane.V == -47.13 [mV], 3.2 [mS/uF], 0.32 [1/mV/ms] * (membrane.V + 47.13 [mV]) / (1 - exp(-0.1 [1/mV] * (membrane.V + 47.13 [mV]))))
+    in [mS/uF]
+beta_m = 0.08 [mS/uF] * exp(-membrane.V / 11 [mV])
+    in [mS/uF]
+dot(m) = alpha_m  * (1 - m) - beta_m * m
+
+[I_NaBK]
+I_nabk = I_nabk_junc + I_nabk_sl
+    in [A/F]
+I_nabk_junc = parameters.Fjunc * parameters.GNaB * (membrane.V - parameters.ena_junc)
+    in [A/F]
+I_nabk_sl = parameters.Fsl * parameters.GNaB * (membrane.V - parameters.ena_sl)
+    in [A/F]
+
+[I_NaK]
+block_NAK = 1 
+
+I_nak = INaK_Fact * (I_nak_junc + I_nak_sl)
+    INaK_Fact = if(parameters.useSchmidt2015Remodeling < 1, 1, 1.25) #1.25 from Circulation 2015
+    in [A/F]
+I_nak_junc = block_NAK * parameters.Fjunc * parameters.IbarNaK * fnak * parameters.Ko / (1 + (parameters.KmNaip / Na_Concentrations.Na_j) ^ 4) / (parameters.Ko + parameters.KmKo)
+    in [A/F]
+I_nak_sl = block_NAK * parameters.Fsl * parameters.IbarNaK * fnak * parameters.Ko / (1 + (parameters.KmNaip / Na_Concentrations.Na_sl) ^ 4) / (parameters.Ko + parameters.KmKo)
+    in [A/F]
+fnak = 1 / (1 + 0.1245 * exp(-0.1 * membrane.V * parameters.FoRT) + 0.0365 * sigma * exp(-membrane.V * parameters.FoRT))
+    in [1]
+sigma = (exp(parameters.Nao / 67.3 [mM]) - 1) / 7
+    in [1]
+
+[I_PCa]
+I_pca = I_pca_junc + I_pca_sl
+    in [A/F]
+I_pca_junc = parameters.Fjunc * parameters.Q10SLCaP ^ parameters.Qpow * parameters.IbarSLCaP * Ca_Concentrations.Ca_j ^ 1.6 / (parameters.KmPCa ^ 1.6 + Ca_Concentrations.Ca_j ^ 1.6)
+    in [A/F]
+I_pca_sl = parameters.Fsl * parameters.Q10SLCaP ^ parameters.Qpow * parameters.IbarSLCaP * Ca_Concentrations.Ca_sl ^ 1.6 / (parameters.KmPCa ^ 1.6 + Ca_Concentrations.Ca_sl ^ 1.6)
+    in [A/F]
+
+[I_to]
+
+Gto_scalar = 1.935
+GtoFast = Gto_scalar * (1 - 0.8 * parameters.AF * (1 - parameters.RA) - 0.45 * parameters.AF * parameters.RA) * 0.165 # Updated from Caballero 2010 (-45% RA, -80% LA)
+    ITo_Fact = if(parameters.useSchmidt2015Remodeling < 1, 1, 0.4) #0.4 from circulation 2015
+    in [mS/uF]
+xtoss = ( (1)/ ( 1 + exp( -(membrane.V+1.0)/11.0 ) ) )
+    in [1]
+tauxtof = 3.5*exp(-((membrane.V/30.0)^2.0))+1.5
+    in [ms]
+ytoss = ( (1.0)/ ( 1 + exp( (membrane.V+40.5)/11.5) ) )
+    in [1]
+tauytof = 25.635*exp(-(((membrane.V+52.45)/15.8827)^2.0))+24.14
+    in [ms]
+dot(x_to_f) = (xtoss - x_to_f) / tauxtof
+dot(y_to_f) = (ytoss - y_to_f) / tauytof
+I_tof = GtoFast * x_to_f * y_to_f * (membrane.V-parameters.ek)
+I_to = I_tof
+
+[Junctional_and_SL_Ca_Buffers]
+J_CaB_junction = dot(SLL_j)+dot(SLH_j)
+    in [mM/ms]
+J_CaB_sl = dot(SLH_sl)+dot(SLL_sl)
+    in [mM/ms]
+dot(SLH_j) = parameters.kon_slh * Ca_Concentrations.Ca_j * (parameters.Bmax_SLhighj - SLH_j) - parameters.koff_slh * SLH_j
+    in [mM]
+dot(SLH_sl) = parameters.kon_slh * Ca_Concentrations.Ca_sl * (parameters.Bmax_SLhighsl - SLH_sl) - parameters.koff_slh * SLH_sl
+    in [mM]
+dot(SLL_j) = parameters.kon_sll * Ca_Concentrations.Ca_j * (parameters.Bmax_SLlowj - SLL_j) - parameters.koff_sll * SLL_j
+    in [mM]
+dot(SLL_sl) = parameters.kon_sll * Ca_Concentrations.Ca_sl * (parameters.Bmax_SLlowsl - SLL_sl) - parameters.koff_sll * SLL_sl
+    in [mM]
+
+[K_Concentration]
+I_K_tot = I_to.I_to + I_Kr.I_kr + I_Ks.I_ks + I_Ki.I_ki - 2 * I_NaK.I_nak + I_Ca.I_CaK + I_Kp.I_kp+ I_kur.I_kur+ I_k2p.I_k2p + I_KACh.IKACh + I_SK.I_sk
+    in [A/F]
+dot(K_i) = 0 [mM/ms]  
+    in [mM]
+
+[Na_Buffers]
+dot(Na_Bj) = dNa_Bj_dt
+    in [mM]
+dot(Na_Bsl) = dNa_Bsl_dt
+    in [mM]
+dNa_Bj_dt = parameters.kon_na * Na_Concentrations.Na_j * (parameters.Bmax_Naj - Na_Bj) - parameters.koff_na * Na_Bj
+    in [mM/ms]
+dNa_Bsl_dt = parameters.kon_na * Na_Concentrations.Na_sl * (parameters.Bmax_Nasl - Na_Bsl) - parameters.koff_na * Na_Bsl
+    in [mM/ms]
+
+[Na_Concentrations]
+I_Na_tot_junc = + I_NaBK.I_nabk_junc + 3 * I_NCX.I_ncx_junc + 3 * I_NaK.I_nak_junc + I_Ca.I_CaNa_junc + I_Na.I_Na_junc + I_Na_late.I_NaL_junc  
+    in [A/F]
+I_Na_tot_sl =  + I_NaBK.I_nabk_sl + 3 * I_NCX.I_ncx_sl + 3 * I_NaK.I_nak_sl + I_Ca.I_CaNa_sl + I_Na.I_Na_sl + I_Na_late.I_NaL_sl
+    in [A/F]
+dot(Na_i) = if(parameters.clampNai >= 0, 0.01 * (parameters.clampNai - Na_i), parameters.J_na_slmyo / parameters.Vmyo * (Na_sl - Na_i))
+    in [mM]
+dot(Na_j) = if(parameters.clampNai >= 0, 0.01 * (parameters.clampNai - Na_j), -I_Na_tot_junc * parameters.Cmem / (parameters.Vjunc * parameters.Frdy) + parameters.J_na_juncsl / parameters.Vjunc * (Na_sl - Na_j) - Na_Buffers.dNa_Bj_dt)
+    in [mM]
+dot(Na_sl) = if(parameters.clampNai >= 0, 0.01 * (parameters.clampNai - Na_sl), -I_Na_tot_sl * parameters.Cmem / (parameters.Vsl * parameters.Frdy) + parameters.J_na_juncsl / parameters.Vsl * (Na_j - Na_sl) + parameters.J_na_slmyo / parameters.Vsl * (Na_i - Na_sl) - Na_Buffers.dNa_Bsl_dt)
+    in [mM]
+
+[SR_Ca_Concentrations]
+dot(Ca_sr) = SR_Fluxes.J_serca - (SR_Fluxes.J_SRleak * parameters.Vmyo / parameters.Vsr + SR_Fluxes.J_SRCarel) - dot(Csqn_b)
+    in [mM]
+dot(Csqn_b) = parameters.kon_csqn * Ca_sr * (parameters.Bmax_Csqn - Csqn_b) - parameters.koff_csqn * Csqn_b
+    in [mM]
+
+[SR_Fluxes]
+J_SRCarel = parameters.ks * Ry_Ro * (SR_Ca_Concentrations.Ca_sr - Ca_Concentrations.Ca_j)
+    in [mM/ms]
+J_SRleak = (0.726)*(1.0+0.25*parameters.AF)*5.348e-6 [mS/uF] * (SR_Ca_Concentrations.Ca_sr - Ca_Concentrations.Ca_j)
+    in [mM/ms]
+    
+J_serca = 1.0*parameters.Q10SRCaP^parameters.Qpow*parameters.Vmax_SRCaP*((Ca_Concentrations.Ca_i /parameters.Kmf)^parameters.hillSRCaP-(SR_Ca_Concentrations.Ca_sr/parameters.Kmr)^parameters.hillSRCaP)/(1+(Ca_Concentrations.Ca_i /parameters.Kmf)^parameters.hillSRCaP+(SR_Ca_Concentrations.Ca_sr/parameters.Kmr)^parameters.hillSRCaP)#parameters.Q10SRCaP ^ parameters.Qpow * parameters.Vmax_SRCaP * ((Ca_Concentrations.Ca_i / parameters.Kmf) ^ parameters.hillSRCaP - (SR_Ca_Concentrations.Ca_sr / parameters.Kmr) ^ parameters.hillSRCaP) / (1 + (Ca_Concentrations.Ca_i / parameters.Kmf) ^ parameters.hillSRCaP + (SR_Ca_Concentrations.Ca_sr / parameters.Kmr) ^ parameters.hillSRCaP)
+    in [mM/ms]
+MaxSR = 15
+    in [1]
+MinSR = 1
+    in [1]
+
+RI = 1 [mM] - Ry_Rr - Ry_Ro - Ry_Ri
+    in [mM]
+dot(Ry_Ri) = kiSRCa * Ca_Concentrations.Ca_j * Ry_Ro - parameters.kim * Ry_Ri - (parameters.kom * Ry_Ri - koSRCa * Ca_Concentrations.Ca_j ^ 2 * RI)
+    in [mM]
+dot(Ry_Ro) = (koSRCa * Ca_Concentrations.Ca_j ^ 2 + caffeine_factor) * Ry_Rr - parameters.kom * Ry_Ro - (kiSRCa * Ca_Concentrations.Ca_j * Ry_Ro - parameters.kim * Ry_Ri) 
+    in [mM]
+dot(Ry_Rr) = parameters.kim * RI - kiSRCa * Ca_Concentrations.Ca_j * Ry_Rr - ((koSRCa * Ca_Concentrations.Ca_j ^ 2 + caffeine_factor) * Ry_Rr - parameters.kom * Ry_Ro)
+    in [mM]
+kCaSR = MaxSR - (MaxSR - MinSR) / (1 + (parameters.ec50SR / SR_Ca_Concentrations.Ca_sr) ^ 2.5)
+    in [1]
+kiSRCa = parameters.kiCa * kCaSR
+    in [1/mM/ms]
+koSRCa = parameters.koCa / kCaSR
+    in [1/mM^2/ms]
+caffeine_factor = 0
+
+[engine]
+time = 0 bind time #ms
+    in [ms]
+time_hr = time / 3600000
+
+    
+[membrane]
+dot(V) = -(I_tot + Istim + i_diff)
+    label membrane_potential
+    in [mV]
+I_Ca_tot = Ca_Concentrations.I_Ca_tot_junc + Ca_Concentrations.I_Ca_tot_sl
+    in [A/F]
+I_Cl_scalar = 0.75
+I_Cl_tot = I_ClCa.I_ClCa + I_Cl_scalar * I_ClCa.I_Clbk
+    in [A/F]
+I_Na_tot = Na_Concentrations.I_Na_tot_junc + Na_Concentrations.I_Na_tot_sl
+    in [A/F]
+I_tot = I_Na_tot + I_Cl_tot + I_Ca_tot + K_Concentration.I_K_tot 
+    in [A/F]
+i_diff = 0 bind diffusion_current
+
+IstimAmplitude = -12.5 
+level = 0 bind pace
+Istim = level * IstimAmplitude 
+
+[flags]
+UseNewSERCAModel = 0
+
+[parameters]
+Cmem = 1.1E-10 [F]
+    in [F]
+Bmax_CaM = 0.024 [mM]
+    in [mM]
+Bmax_Csqn = 0.14 [mM] * Vmyo / Vsr
+    in [mM]
+Bmax_Naj = 7.561 [mM]
+    in [mM]
+Bmax_Nasl = 1.65 [mM]
+    in [mM]
+Bmax_SLhighj = 0.00165 [mM] * Vmyo / Vjunc * 0.1
+    in [mM]
+Bmax_SLhighsl = 0.0134 [mM] * Vmyo / Vsl
+    in [mM]
+Bmax_SLlowj = 0.0046 [mM] * Vmyo / Vjunc * 0.1
+    in [mM]
+Bmax_SLlowsl = 0.0374 [mM] * Vmyo / Vsl
+    in [mM]
+Bmax_SR = 19 [mM] * 0.0009
+    in [mM]
+Bmax_TnChigh = 0.14 [mM]
+    in [mM]
+Bmax_TnClow = 0.07 [mM]
+    in [mM]
+Bmax_myosin = 0.14 [mM]
+    in [mM]
+Cao = 1.8 [mM]
+    in [mM]
+Cli = 15 [mM]
+    in [mM]
+Clo = 150 [mM]
+    in [mM]
+
+DcaJuncSL = 1.64e-6 [cm^2/s]
+    in [cm^2/s]
+DcaSLcyto = 1.22e-6 [cm^2/s]
+    in [cm^2/s]
+DnaJuncSL = 1.09e-5 [cm^2/s]
+    in [cm^2/s]
+DnaSLcyto = 1.79e-5 [cm^2/s]
+    in [cm^2/s]
+Fjunc = 0.11
+    in [1]
+Fjunc_CaL = 0.9
+    in [1]
+FoRT = Frdy/R/Temp
+    in [1/mV]
+Frdy = 96485 
+    in [C/mol]
+Fsl = 1 - Fjunc
+    in [1]
+Fsl_CaL = 1 - Fjunc_CaL
+    in [1]
+GCaB = 6.0643e-4 * 0.998
+GClB = 1.788 * 0.009 [mS/uF]
+    in [mS/uF]
+GClCa = 0.505 * 0.0548
+    in [mS/uF]    
+GNaB = 0.000597 * 0.996 [mS/uF]
+    in [mS/uF]
+
+IbarNCX = 1.215 * (1 + 0.9862 * 0.4 * AF)*3.15
+    in [A/F]
+IbarNaK = 1.26 * 0.901
+    in [A/F]
+IbarSLCaP = 0.572*0.0471
+    in [A/F]
+J_ca_juncsl =  1/1.2134e12
+    in [m^3/s]
+J_ca_slmyo =  1/2.68510e11
+    in [m^3/s]
+J_na_juncsl =  1/(1.6382e12/3*100)
+    in [m^3/s]
+J_na_slmyo =  1/(1.8308e10/3*100)
+    in [m^3/s]
+KdClCa = 0.1 [mM]
+    in [mM]
+Kdact = 0.384e-3
+    in [mM]
+KmCai = 0.00359 [mM]
+    in [mM]
+KmCao = 1.3 [mM]
+    in [mM]
+KmKo = 1.5 [mM]
+    in [mM]
+KmNai = 12.29 [mM]
+    in [mM]
+KmNaip = 11 [mM]
+    in [mM]
+KmNao = 87.5 [mM]
+    in [mM]
+KmPCa = 0.0005 [mM]
+    in [mM]
+
+Kmf = if(parameters.AF == 1, 1.482 * 0.907 * 1.25 * 2.5 * 0.000246, 0.907 * 2.5 * 0.000246)
+    in [mM]
+Kmr = 1.7 [mM]
+    in [mM]
+Ko = 5.4 [mM]
+    in [mM]
+Mgi = 1 [mM]
+    in [mM]
+Nao = 140 #140 [mM]
+    in [mM]
+Q10CaL = 1.8
+    in [1]
+Q10KmNai = 1.39
+    in [1]
+Q10NCX = 1.57
+    in [1]
+Q10NaK = 1.63
+    in [1]
+Q10SLCaP = 2.35
+    in [1]
+Q10SRCaP = 2.6
+    in [1]
+Qpow = (Temp - 310 [K]) / 10 [K]
+    in [1]
+R = 8314 
+    in [mJ/mol/K]
+SAjunc = 20150 *  3.14159265358979312 * 2 * junctionLength * junctionRadius
+    in [mol^2 (1e-12)]
+SAsl =  3.14159265358979312 * 2 * cellRadius * cellLength
+    in [mol^2 (1e-12)]
+Temp = 310 [K]
+    in [K]
+Vcell =  33E-12 
+    in [L]
+Vjunc = 0.0539 * 0.01 * Vcell
+    in [L]
+Vmax_SRCaP = 0.8942 * 0.0053114 * (1 - 0.1945 * 0.25 * parameters.AF)
+    in [mM/ms]
+Vmyo = 0.65 * Vcell
+    in [L]
+Vsl = 0.02 * Vcell
+    in [L]
+Vsr = 0.035 * Vcell
+    in [L]
+cellLength = 100 [umol]
+    in [umol]
+cellRadius = 10.25 [umol]
+    in [umol]
+distJuncSL = 0.5 [umol]
+    in [umol]
+distSLcyto = 0.45 [umol]
+    in [umol]
+ec50SR = if(parameters.AF == 1, 0.67 * 1.25 * 0.45, 0.45)
+    in [mM]
+eca_junc = 1 / FoRT / 2 * log(Cao / Ca_Concentrations.Ca_j)
+    in [mV]
+eca_sl = 1 / FoRT / 2 * log(Cao / Ca_Concentrations.Ca_sl)
+    in [mV]
+ecl = 1 / FoRT * log(Cli / Clo)
+    in [mV]
+ek = 1 / FoRT * log(Ko / K_Concentration.K_i)
+    in [mV]
+ena_junc = 1 / FoRT * log(Nao / Na_Concentrations.Na_j)
+    in [mV]
+ena_sl = 1 / FoRT * log(Nao / Na_Concentrations.Na_sl)
+    in [mV]
+epi = 1
+    in [1]
+
+
+gkp = 0.492 * 2 * 0.001 [mS/uF]
+    in [mS/uF]
+hillSRCaP = 1.787
+    in [1]
+junctionLength = 0.16 [umol]
+    in [umol]
+junctionRadius = 0.015 [umol]
+    in [umol]
+kiCa = 0.5 [1/mM/ms]
+    in [1/mM/ms]
+kim = 0.005 [mS/uF]
+    in [mS/uF]
+
+koCa = if(parameters.AF == 0, koCaBase+20*AF, 0.29 * koCaBase+20*AF) 
+    in [1/mM^2/ms]
+koCaBase = 10
+koff_cam = 0.238 [mS/uF]
+    in [mS/uF]
+koff_csqn = 65 [mS/uF]
+    in [mS/uF]
+koff_myoca = 0.00046 [mS/uF]
+    in [mS/uF]
+koff_myomg = 5.7e-5 [mS/uF]
+    in [mS/uF]
+koff_na = 0.001 [mS/uF]
+    in [mS/uF]
+koff_slh = 0.03 [mS/uF]
+    in [mS/uF]
+koff_sll = 1.3 [mS/uF]
+    in [mS/uF]
+koff_sr = 0.06 [mS/uF]
+    in [mS/uF]
+koff_tnchca = 3.2e-5 [mS/uF]
+    in [mS/uF]
+koff_tnchmg = 0.00333 [mS/uF]
+    in [mS/uF]
+koff_tncl = 0.0196 [mS/uF]
+    in [mS/uF]
+kom = 0.06 [mS/uF]
+    in [mS/uF]
+kon_cam = 34 [1/mM/ms]
+    in [1/mM/ms]
+kon_csqn = 100 [1/mM/ms]
+    in [1/mM/ms]
+kon_myoca = 13.8 [1/mM/ms]
+    in [1/mM/ms]
+kon_myomg = 0.0157 [1/mM/ms]
+    in [1/mM/ms]
+kon_na = 0.0001 [1/mM/ms]
+    in [1/mM/ms]
+kon_slh = 100 [1/mM/ms]
+    in [1/mM/ms]
+kon_sll = 100 [1/mM/ms]
+    in [1/mM/ms]
+kon_sr = 100 [1/mM/ms]
+    in [1/mM/ms]
+kon_tnchca = 2.37 [1/mM/ms]
+    in [1/mM/ms]
+kon_tnchmg = 0.003 [1/mM/ms]
+    in [1/mM/ms]
+kon_tncl = 32.7 [1/mM/ms]
+    in [1/mM/ms]
+ks = 0.967 * 25 [mS/uF]
+    in [mS/uF]
+ksat = 0.27 
+    in [1]
+nu = 0.35 
+    in [1]
+pCa = 1.475 * (1-0.5*AF)*2.7e-4 
+    in [cm/s]
+pK = 1.475 * (1-0.5*AF)*1.35e-7 
+    in [cm/s]
+pNa = 1.475 * (1-0.5*AF)*0.75e-8
+    in [cm/s]
+pNaK = 0.01833
+    in [1]
+CCh = 0    
+AF = 0
+useSchmidt2015Remodeling = 0
+clampNai = -1
+ik2p_block = 0
+ISO = 0
+RA = 1 
+CaMK0 = 1.9840e-01
+Km_CaM = 1.5000e-03 [mmol/L] 
+alpha_CaMK = 1.2090e-02 #[/ms]
+beta_CaMK = 6.8000e-04 #[/ms]
+
+
+[I_SK]
+#Small-Conductance Ca-Activated K+ Current
+p1 = 0.0506381114404388
+p2 = 0.273335569451572
+p3 = 2.96381060498817
+p4 = 0.199981221802789
+p5 = 0.279328126521496
+p6 = -86.9289059836381
+p7 = 0.00636311816933264
+p8 = 5.22915055145375
+SK_cond = 1
+
+# Conductance SK
+gsk_scalar = 0.46
+gsk_ratio = 1.053
+gsk_base = gsk_scalar * (SK_cond * p1 *(1 + (p8-1) * parameters.AF))
+gsk = if(parameters.AF == 0, gsk_base, gsk_ratio * gsk_base)
+
+kdsk_scalar = 0.794
+
+# Affnity of sk channel for activation by intra-cellular calcium
+kdsk_basal = (10^(-3.45)) # (mM)
+kdsk = if(parameters.AF == 1, kdsk_scalar * (kdsk_basal - 50E-6),  kdsk_scalar * (kdsk_basal + 50E-6))
+
+gsk_ca_junc = 1 / (1 + exp((log10(kdsk) - log10(Ca_Concentrations.Ca_j)) / 0.3))
+gsk_ca_sl = 1 / (1 + exp((log10(kdsk) - log10(Ca_Concentrations.Ca_sl)) / 0.3))
+gsk_vm = p2/(1 + exp((membrane.V - parameters.ek + p3) * p4)) + p5 / (1 + exp((-(membrane.V - parameters.ek + p6)) * p7))
+
+# Calculate the SK currents
+I_sk_junc = parameters.Fjunc * gsk * gsk_ca_junc * gsk_vm * (membrane.V - parameters.ek)
+I_sk_sl = parameters.Fsl * gsk * gsk_ca_sl * gsk_vm * (membrane.V - parameters.ek)                                                                                                                             
+I_sk = (I_sk_junc + I_sk_sl)
