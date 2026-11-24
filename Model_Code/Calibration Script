@@ -1,1 +1,867 @@
-zzz
+[[model]]
+[engine]
+time = 0 bind time
+pace = 0 bind pace
+
+[[protocol]]
+# Level  Start    Length   Period   Multiplier
+1.0      100.0    0.5      1000.0   0
+
+[[script]]
+import matplotlib.pyplot as plt
+import myokit
+import numpy as np
+import scipy as sp
+from scipy.optimize import minimize
+
+m,p,s = myokit.load('Calcium_Transcription_Model.mmt')
+s = myokit.Simulation(m, p)
+s.set_tolerance(1E-8)
+start_state = s.state()
+
+m_mir1,p,s_mir1 = myokit.load('Calcium_Transcription_Model.mmt')
+mv_1 = m_mir1.get('transcription.mir1')
+mv_1.demote()
+mv_1.set_rhs(0)
+s_mir1 = myokit.Simulation(m_mir1, p)
+s_mir1.set_tolerance(1E-8) 
+start_state_mir1 = s_mir1.state()
+
+m_HDAC4,p,s_HDAC4 = myokit.load('Calcium_Transcription_Model.mmt')
+mv_hdac4 = m_HDAC4.get('transcription.HDAC4_N')
+mv_hdac4.demote()
+mv_hdac4.set_rhs(0)
+mv_hdac4 = m_HDAC4.get('transcription.HDAC4_C')
+mv_hdac4.demote()
+mv_hdac4.set_rhs(0)
+s_HDAC4 = myokit.Simulation(m_HDAC4, p)
+s_HDAC4.set_tolerance(1E-8) 
+start_state_hdac4 = s_HDAC4.state()
+
+def setSimParams(sim, params, initstate):
+    sim.reset()
+    sim.set_state(initstate)
+    #Note: params = [CaMKII, x-vector]
+    x_start = 1
+    
+    sim.set_constant('CaMK.fixed_Active', params[0])
+    sim.set_constant('transcription.Prod_A', params[x_start+0])
+    sim.set_constant('transcription.Prod_B', params[x_start+1])
+    sim.set_constant('transcription.r1', params[x_start+2])
+    sim.set_constant('transcription.r2', params[x_start+3])
+    sim.set_constant('transcription.k1', params[x_start+4])
+    sim.set_constant('transcription.k2', params[x_start+5])
+    sim.set_constant('transcription.d4', params[x_start+6])
+    sim.set_constant('transcription.kf', params[x_start+7])
+    sim.set_constant('transcription.kb', params[x_start+8])
+    sim.set_constant('transcription.d2', params[x_start+9])
+    sim.set_constant('transcription.d3', params[x_start+10])
+    sim.set_constant('transcription.k4', params[x_start+11])
+    sim.set_constant('transcription.k5', params[x_start+12])
+    sim.set_constant('transcription.d1', params[x_start+13])
+    sim.set_constant('transcription.k3', params[x_start+14])
+    sim.set_constant('transcription.ra', params[x_start+15])
+    sim.set_constant('transcription.rb', params[x_start+16])
+    sim.set_constant('transcription.r3', params[x_start+17])
+    sim.set_constant('transcription.r4', params[x_start+18])
+    sim.set_constant('transcription.alfa', params[x_start+19])
+    sim.set_constant('transcription.Prod_1', params[x_start+20])
+    sim.set_constant('transcription.d7', params[x_start+21])
+    sim.set_constant('transcription.i5', params[x_start+22])
+    sim.set_constant('transcription.f_MEF2', params[x_start+23])    
+    sim.set_constant('transcription.Prod_HDAC4_C', params[x_start+24])    
+    sim.set_constant('transcription.b1', params[x_start+25])
+    sim.set_constant('transcription.yama', params[x_start+26])
+    sim.set_constant('transcription.Prod_MEF2', params[x_start+27])
+    sim.set_constant('transcription.a1', params[x_start+28])
+    sim.set_constant('transcription.a2', params[x_start+29])
+    sim.set_constant('transcription.c1', params[x_start+30])
+    sim.set_constant('transcription.d8', params[x_start+31])
+    sim.set_constant('transcription.d9', params[x_start+32])
+    sim.set_constant('transcription.t', params[x_start+33])
+    sim.set_constant('transcription.t1', params[x_start+34])
+    sim.set_constant('transcription.Km', params[x_start+35])
+    sim.set_constant('transcription.h', params[x_start+36])
+    sim.set_constant('transcription.i6', params[x_start+37])
+    sim.set_constant('transcription.b6', params[x_start+38])
+    sim.set_constant('transcription.kc', params[x_start+39])
+    sim.set_constant('transcription.conversion_factor', 1)
+        
+    return sim
+
+#parameter optimization
+def errorfunc(x, showit = 0):
+    print(x)
+    error_neg_val = 1E12
+    
+    for i in range(len(x)):
+        if x[i] < 0:
+            return error_neg_val
+                                          
+    #experimental data    
+    #Rosati J Physiol paper (https://pubmed.ncbi.nlm.nih.gov/21521762
+    #mRNA Cav1.2
+    Exp_Rosati_mRNA_Cav12_time = np.array([0, 24, 48, 96, 168])
+    Exp_Rosati_mRNA_Cav12_vals = [1, 0.30266, 0.12311, 0.17089, 0.092]    
+    
+    #Daniele J Cell Biol 2009 (https://pubmed.ncbi.nlm.nih.gov/19307602/)
+    #protein Cav1.2
+    Exp_Daniele_ProteinA_time = np.array([0, 4, 10, 25])
+    Exp_Daniele_ProteinA = [100/100, 78.05/100, 61.39/100, 52.09/100]  #Amount of Cav1.2 protein labelling (%)
+    
+    #Marcel J Biol Chem 2011 (https://pubmed.ncbi.nlm.nih.gov/21357697/)
+    #protein Cavbeta
+    Exp_Marcel_ProteinB_time = np.array([0, 10]) #hours
+    Exp_Marcel_ProteinB = [100/100, 50/100]  #Cavbeta subunit half-life: 9.5-10hrs    
+         
+    #Rau Nature structural & molecular biology 2011 (https://pubmed.ncbi.nlm.nih.gov/21685920/)
+    #mir1 inhibits CACNA1C 
+    Exp_mir1_CACNA1C_conc = np.array([35, 18.9, 50]) 
+    Exp_mir1_CACNA1C_protein = [1, 1.304, 0.853] 
+    
+    #Yingmin J Clin Exp Med 2015(https://pubmed.ncbi.nlm.nih.gov/25785065/)
+    #mir1 inhibits CACNB2
+    Exp_mir1_CACNB2_conc = np.array([6, 2.76, 16]) 
+    Exp_mir1_CACNB2_protein = [1.05/1.05, 1.37/1.05, 0.8/1.05] #ctr, mir1-KO, mir1-OE
+          
+    #Liu Proc Natl Acad Sciof USA 2007(https://pubmed.ncbi.nlm.nih.gov/18093911/)
+    #MEF2 regulate mir1 
+    Exp_MEF2_mir1_Liu = [1, 0.33] #MEF2WT, MEF2KO
+    
+    #Auinash Cell Rep 2014 (https://pubmed.ncbi.nlm.nih.gov/24412363/)
+    #MEF2C downexpress or overexpress to regulate mir1 and mir133
+    Exp_MEF2 = [1, 0.49, 2.09] #fold  change of MEF2C expression level, control, downexpress, overexpress
+    Exp_MEF2_mir1_Auinash = [1, 0.58, 1.22]#fold change of mir1 expression level, control, downexpress, overexpress
+    
+    #Wang Mol Cell Biol. 1999 (https://pubmed.ncbi.nlm.nih.gov/10523670/)
+    #HDAC4 repress MEF2C
+    Exp_HDAC4 = [0, 15, 50] #0HDAC4, 15ng, 50ng
+    Exp_HDAC4_relative = [0/50, 15/50, 50/50]
+    Exp_HDAC4_MEF2 = [66.26/66.26, 3.68/66.26, 0.98/66.26]#Relative Luc activity (-fold)
+    
+    # Backs Proc Natl Acad Sci USA 2009  (https://pubmed.ncbi.nlm.nih.gov/19179290/)
+    # CaMKII overexpress or KO regulate translocation of HDAC4
+    Exp_CaMKII = [1, 3, 0] #CTL, overexpress, KO
+    Exp_cytosol_HDAC4 = [1, 3.5, 0.314] #normalized value 
+    
+    #calibrate a quick channel degradation
+    Exp_channel_time = np.array([0, 24])
+    Exp_active_channel_vals = [1, 0.5]   
+    
+    #prepace_dura = 100*3600
+    prepace_dura = 200
+    
+    #CaMKII translocate HDAC4 from cytosol to nuclear
+    #CaMKII Control
+    #MEF2 regulate mir1 expression
+    #MEF2 control
+    #params = np.concatenate(([0.005], x))
+    baseline_camk = 0.15
+    params = np.concatenate(([baseline_camk], x))
+    s_local = setSimParams(s, params, start_state)
+    s_local.pre(prepace_dura)
+    d_CaMKII_Ctr = s_local.run(1)
+    v_CaMKII_HDAC4_C_Ctr = d_CaMKII_Ctr['transcription.HDAC4_C']
+    v_CaMKII_HDAC4_N_Ctr = d_CaMKII_Ctr['transcription.HDAC4_N']
+    v_CaMKII_mir1_Ctr = d_CaMKII_Ctr['transcription.mir1']  
+    v_MEF2_Ctr_0 = d_CaMKII_Ctr['transcription.MEF2']
+    v_CaMKII_proteinA_Ctr = d_CaMKII_Ctr['transcription.proteinA']
+    v_CaMKII_proteinB_Ctr = d_CaMKII_Ctr['transcription.proteinB']
+    v_CaMKII_mir1_mrnaA_Ctr = d_CaMKII_Ctr['transcription.mir1_mrnaA']
+    v_CaMKII_mir1_mrnaB_Ctr = d_CaMKII_Ctr['transcription.mir1_mrnaB']
+    v_CaMKII_mRNAA_Ctr = d_CaMKII_Ctr['transcription.mRNAA']
+    v_CaMKII_mRNAB_Ctr = d_CaMKII_Ctr['transcription.mRNAB']
+    
+    
+    #total Cav1.2 protein and mRNA decay Rosati
+    #params = np.concatenate(([0.005], x))
+    params = np.concatenate(([baseline_camk], x))
+    s_local = setSimParams(s, params, start_state)
+    s_local.pre(prepace_dura)
+    d_total_protein_decay = s_local.run(1)  
+    temp = d_total_protein_decay['transcription.CaMK_effective'] 
+    print("CaMKII Baseline: %f" % (temp[1]))  
+    
+    s_local.set_constant('CaMK.fixed_Active', baseline_camk)
+    s_local.set_constant('transcription.Prod_A', 0.17*x[0])
+    s_local.set_constant('transcription.Prod_B', x[1])
+    s_local.set_constant('transcription.r1', x[2])
+    s_local.set_constant('transcription.r2', x[3])
+    s_local.set_constant('transcription.k1', x[4])
+    s_local.set_constant('transcription.k2', x[5])
+    s_local.set_constant('transcription.d4', x[6])
+    s_local.set_constant('transcription.kf', x[7])
+    s_local.set_constant('transcription.kb', x[8])
+    s_local.set_constant('transcription.d2', x[9])
+    s_local.set_constant('transcription.d3', x[10])
+    s_local.set_constant('transcription.k4', x[11])
+    s_local.set_constant('transcription.k5', x[12])
+    s_local.set_constant('transcription.d1', x[13])
+    s_local.set_constant('transcription.k3', x[14])
+    s_local.set_constant('transcription.ra', x[15])
+    s_local.set_constant('transcription.rb', x[16])
+    s_local.set_constant('transcription.r3', x[17])
+    s_local.set_constant('transcription.r4', x[18])
+    s_local.set_constant('transcription.alfa', x[19])
+    s_local.set_constant('transcription.Prod_1', x[20])
+    s_local.set_constant('transcription.d7',x[21])
+    s_local.set_constant('transcription.i5', x[22])
+    s_local.set_constant('transcription.f_MEF2', x[23])    
+    s_local.set_constant('transcription.Prod_HDAC4_C', x[24])    
+    s_local.set_constant('transcription.b1', x[25])
+    s_local.set_constant('transcription.yama', x[26])
+    s_local.set_constant('transcription.Prod_MEF2', x[27])
+    s_local.set_constant('transcription.a1', x[28])
+    s_local.set_constant('transcription.a2', x[29])
+    s_local.set_constant('transcription.c1', x[30])
+    s_local.set_constant('transcription.d8', x[31])
+    s_local.set_constant('transcription.d9', x[32])
+    s_local.set_constant('transcription.t', x[33])
+    s_local.set_constant('transcription.t1', x[34])
+    s_local.set_constant('transcription.Km', x[35])
+    s_local.set_constant('transcription.h', x[36])
+    s_local.set_constant('transcription.i6', x[37])
+    s_local.set_constant('transcription.b6', x[38])
+    s_local.set_constant('transcription.kc', x[39])  
+        
+    d2 = s_local.run(200*3600000, log_interval = 1)
+
+    mRNAA = np.array(d2['transcription.mRNAA'])
+    mRNAA_BASE = mRNAA[0]
+
+    
+    ##CaMKII overexpress impact channel decay
+    params = np.concatenate(([3*baseline_camk], x))  
+    s_local = setSimParams(s, params, start_state)
+    s_local.pre(prepace_dura)
+    s_local.set_constant('CaMK.fixed_Active', 3*baseline_camk)
+    s_local.set_constant('transcription.Prod_A', 0)
+    s_local.set_constant('transcription.Prod_B', 0)
+    s_local.set_constant('transcription.r1', x[2])
+    s_local.set_constant('transcription.r2', x[3])
+    s_local.set_constant('transcription.k1', x[4])
+    s_local.set_constant('transcription.k2', x[5])
+    s_local.set_constant('transcription.d4', x[6])
+    s_local.set_constant('transcription.kf', x[7])
+    s_local.set_constant('transcription.kb', x[8])
+    s_local.set_constant('transcription.d2', x[9])
+    s_local.set_constant('transcription.d3', x[10])
+    s_local.set_constant('transcription.k4', x[11])
+    s_local.set_constant('transcription.k5', x[12])
+    s_local.set_constant('transcription.d1', x[13])
+    s_local.set_constant('transcription.k3', x[14])
+    s_local.set_constant('transcription.ra', x[15])
+    s_local.set_constant('transcription.rb', x[16])
+    s_local.set_constant('transcription.r3', x[17])
+    s_local.set_constant('transcription.r4', x[18])
+    s_local.set_constant('transcription.alfa', x[19])
+    s_local.set_constant('transcription.Prod_1', x[20])
+    s_local.set_constant('transcription.d7',x[21])
+    s_local.set_constant('transcription.i5', x[22])
+    s_local.set_constant('transcription.f_MEF2', x[23])    
+    s_local.set_constant('transcription.Prod_HDAC4_C', x[24])    
+    s_local.set_constant('transcription.b1', x[25])
+    s_local.set_constant('transcription.yama', x[26])
+    s_local.set_constant('transcription.Prod_MEF2', x[27])
+    s_local.set_constant('transcription.a1', x[28])
+    s_local.set_constant('transcription.a2', x[29])
+    s_local.set_constant('transcription.c1', x[30])
+    s_local.set_constant('transcription.d8', x[31])
+    s_local.set_constant('transcription.d9', x[32])
+    s_local.set_constant('transcription.t', x[33])
+    s_local.set_constant('transcription.t1', x[34])
+    s_local.set_constant('transcription.Km', x[35])
+    s_local.set_constant('transcription.h', x[36])
+    s_local.set_constant('transcription.i6', x[37])
+    s_local.set_constant('transcription.b6', x[38])
+    s_local.set_constant('transcription.kc', x[39]) 
+    
+    d2c = s_local.run(200*3600000, log_interval = 1)
+    
+    Inact = np.array(d2c['transcription.Inact'])
+    Act = np.array(d2c['transcription.Act'])
+    Inact_BASE = Inact[0]
+    Act_BASE = Act[0]
+    
+    #CaMKII translocate HDAC4 from cytosol to nuclear
+    #CaMKII overexpress
+    #HDAC4 regulate MEF2C
+    #nuclear HDAC4 = 0
+    params = np.concatenate(([3*baseline_camk], x))  
+    s_local = setSimParams(s, params, start_state)
+    s_local.pre(prepace_dura)
+    d_CaMKII_OE = s_local.run(1)
+    v_HDAC4_N_MEF2_0 = d_CaMKII_OE['transcription.MEF2'] 
+    v_CaMKII_HDAC4_C_OE = d_CaMKII_OE['transcription.HDAC4_C']
+    v_CaMKII_HDAC4_N_OE = d_CaMKII_OE['transcription.HDAC4_N'] #v_HDAC4_N_0
+    v_CaMKII_mir1_OE = d_CaMKII_OE['transcription.mir1']
+    v_CaMKII_proteinA_OE = d_CaMKII_OE['transcription.proteinA']
+    v_CaMKII_proteinB_OE = d_CaMKII_OE['transcription.proteinB']
+    v_CaMKII_mir1_mrnaA_OE = d_CaMKII_OE['transcription.mir1_mrnaA']
+    v_CaMKII_mir1_mrnaB_OE = d_CaMKII_OE['transcription.mir1_mrnaB']
+    v_CaMKII_mRNAA_OE = d_CaMKII_OE['transcription.mRNAA']
+    v_CaMKII_mRNAB_OE = d_CaMKII_OE['transcription.mRNAB']
+    
+    temp = d_CaMKII_OE['transcription.CaMK_effective']   
+    print("CaMKII OE: %f" % (temp[1]))
+    
+    #CaMKII KO
+    params = np.concatenate(([0], x))
+    s_local = setSimParams(s, params, start_state)
+    s_local.pre(prepace_dura)
+    d_CaMKII_KO = s_local.run(1)
+    v_CaMKII_MEF2_KO = d_CaMKII_KO['transcription.MEF2']
+    v_CaMKII_HDAC4_C_KO = d_CaMKII_KO['transcription.HDAC4_C']
+    v_CaMKII_HDAC4_N_KO = d_CaMKII_KO['transcription.HDAC4_N'] 
+    v_CaMKII_mir1_KO = d_CaMKII_KO['transcription.mir1'] 
+    v_CaMKII_proteinA_KO = d_CaMKII_KO['transcription.proteinA']
+    v_CaMKII_proteinB_KO = d_CaMKII_KO['transcription.proteinB']
+    v_CaMKII_mir1_mrnaA_KO = d_CaMKII_KO['transcription.mir1_mrnaA']
+    v_CaMKII_mir1_mrnaB_KO = d_CaMKII_KO['transcription.mir1_mrnaB']
+    v_CaMKII_mRNAA_KO = d_CaMKII_KO['transcription.mRNAA']
+    v_CaMKII_mRNAB_KO = d_CaMKII_KO['transcription.mRNAB']
+    
+    temp = d_CaMKII_KO['transcription.CaMK_effective'] 
+    print("CaMKII KO: %f" % (temp[1]))
+    
+    HDAC4_C_BASE = v_CaMKII_HDAC4_C_Ctr[0] 
+    v_CaMKII_HDAC4_C_Ctr = v_CaMKII_HDAC4_C_Ctr[0]/HDAC4_C_BASE  
+    v_CaMKII_HDAC4_C_OE = v_CaMKII_HDAC4_C_OE[0]/HDAC4_C_BASE
+    v_CaMKII_HDAC4_C_KO = v_CaMKII_HDAC4_C_KO[0]/HDAC4_C_BASE
+    
+    HDAC4_N_BASE = v_CaMKII_HDAC4_N_Ctr[0] 
+    v_CaMKII_HDAC4_N_Ctr = v_CaMKII_HDAC4_N_Ctr[0]/HDAC4_N_BASE  
+    v_CaMKII_HDAC4_N_KO = v_CaMKII_HDAC4_N_KO[0]/HDAC4_N_BASE
+    v_CaMKII_HDAC4_N_OE = v_CaMKII_HDAC4_N_OE[0]/HDAC4_N_BASE
+    
+    #HDAC4 regulate MEF2C
+    #nuclear HDAC4 = 0
+    
+    #nuclear HDAC4 = 15
+    params = np.concatenate(([baseline_camk], x)) 
+    s_local = setSimParams(s_HDAC4, params, start_state_hdac4)
+    s_local.set_constant('transcription.HDAC4_N', 1.0) #Set nuclear HDAC4 to 1 nmol/L
+    s_local.pre(prepace_dura)
+    d_HDAC4_N_15 = s_local.run(1)
+    v_HDAC4_N_MEF2_15 = d_HDAC4_N_15['transcription.MEF2']
+    v_HDAC4_N_mir1_15 = d_HDAC4_N_15['transcription.mir1']
+    v_HDAC4_N_proteinA_15 = d_HDAC4_N_15['transcription.proteinA']
+    v_HDAC4_N_proteinB_15 = d_HDAC4_N_15['transcription.proteinB']
+    v_HDAC4_N_mir1_mrnaA_15 = d_HDAC4_N_15['transcription.mir1_mrnaA']
+    v_HDAC4_N_mir1_mrnaB_15 = d_HDAC4_N_15['transcription.mir1_mrnaB']
+    v_HDAC4_N_mRNAA_15 = d_HDAC4_N_15['transcription.mRNAA']
+    v_HDAC4_N_mRNAB_15 = d_HDAC4_N_15['transcription.mRNAB']
+    v_HDAC4_N_15 = [1.0]
+    v_HDAC4_C_15 = [0.0]
+    v_HDAC4_N_15 = v_HDAC4_N_15[0]
+    v_HDAC4_C_15 = v_HDAC4_C_15[0]
+            
+    #nuclear HDAC4 = 50
+    params = np.concatenate(([baseline_camk], x))
+    s_local = setSimParams(s_HDAC4, params, start_state_hdac4)
+    s_local.set_constant('transcription.HDAC4_N', 3.5)
+    s_local.pre(prepace_dura)
+    d_HDAC4_N_50 = s_local.run(1)
+    v_HDAC4_N_MEF2_50 = d_HDAC4_N_50['transcription.MEF2']
+    v_HDAC4_N_mir1_50 = d_HDAC4_N_50['transcription.mir1']
+    v_HDAC4_N_proteinA_50 = d_HDAC4_N_50['transcription.proteinA']
+    v_HDAC4_N_proteinB_50 = d_HDAC4_N_50['transcription.proteinB']
+    v_HDAC4_N_mir1_mrnaA_50 = d_HDAC4_N_50['transcription.mir1_mrnaA']
+    v_HDAC4_N_mir1_mrnaB_50 = d_HDAC4_N_50['transcription.mir1_mrnaB']
+    v_HDAC4_N_mRNAA_50 = d_HDAC4_N_50['transcription.mRNAA']
+    v_HDAC4_N_mRNAB_50 = d_HDAC4_N_50['transcription.mRNAB']
+    v_HDAC4_N_50 = [3.5] 
+    v_HDAC4_C_50 = [0.0]    
+    v_HDAC4_N_50 = v_HDAC4_N_50[0] 
+    v_HDAC4_C_50 = v_HDAC4_C_50[0] 
+
+    
+    #normalize MEF2 levels
+    MEF2_BASE_comp = v_MEF2_Ctr_0[0] 
+    v_CaMKII_MEF2_KO = v_CaMKII_MEF2_KO[0]/MEF2_BASE_comp
+    v_MEF2_Ctr_0 = v_MEF2_Ctr_0[0]/MEF2_BASE_comp
+    v_CaMKII_MEF2_OE = v_HDAC4_N_MEF2_0[0]/MEF2_BASE_comp  #CaMKII overexpression
+    v_HDAC4_N_MEF2_15_comp = v_HDAC4_N_MEF2_15[0]/MEF2_BASE_comp
+    v_HDAC4_N_MEF2_50_comp = v_HDAC4_N_MEF2_50[0]/MEF2_BASE_comp
+    
+    MEF2_BASE = v_HDAC4_N_MEF2_0[0]
+    v_HDAC4_N_MEF2_0 = v_HDAC4_N_MEF2_0[0]/MEF2_BASE  #CaMKII overexpression
+    v_HDAC4_N_MEF2_15 = v_HDAC4_N_MEF2_15[0]/MEF2_BASE
+    v_HDAC4_N_MEF2_50 = v_HDAC4_N_MEF2_50[0]/MEF2_BASE  
+    
+    #normalize mir1 levels 1
+    mir1_BASE_comp = 1#v_CaMKII_mir1_Ctr[0]
+    v_CaMKII_mir1_KO = v_CaMKII_mir1_KO[0]/mir1_BASE_comp
+    v_CaMKII_mir1_Ctr = v_CaMKII_mir1_Ctr[0]/mir1_BASE_comp
+    v_CaMKII_mir1_OE = v_CaMKII_mir1_OE[0]/mir1_BASE_comp
+    v_HDAC4_N_mir1_15 = v_HDAC4_N_mir1_15[0]/mir1_BASE_comp
+    v_HDAC4_N_mir1_50 = v_HDAC4_N_mir1_50[0]/mir1_BASE_comp 
+    
+
+    
+    #normalize cav1.2 protein level
+    proteinA_BASE_comp = v_CaMKII_proteinA_Ctr[0]
+    v_CaMKII_proteinA_KO = v_CaMKII_proteinA_KO[0]/proteinA_BASE_comp
+    v_CaMKII_proteinA_Ctr = v_CaMKII_proteinA_Ctr[0]/proteinA_BASE_comp
+    v_CaMKII_proteinA_OE = v_CaMKII_proteinA_OE[0]/proteinA_BASE_comp
+    v_HDAC4_N_proteinA_15 = v_HDAC4_N_proteinA_15[0]/proteinA_BASE_comp
+    v_HDAC4_N_proteinA_50 = v_HDAC4_N_proteinA_50[0]/proteinA_BASE_comp
+    
+    #normalize cavbeta protein level
+    proteinB_BASE_comp = v_CaMKII_proteinB_Ctr[0]
+    v_CaMKII_proteinB_KO_comp = v_CaMKII_proteinB_KO[0]/proteinB_BASE_comp
+    v_CaMKII_proteinB_Ctr_comp = v_CaMKII_proteinB_Ctr[0]/proteinB_BASE_comp
+    v_CaMKII_proteinB_OE_comp = v_CaMKII_proteinB_OE[0]/proteinB_BASE_comp
+    v_HDAC4_N_proteinB_15_comp = v_HDAC4_N_proteinB_15[0]/proteinB_BASE_comp
+    v_HDAC4_N_proteinB_50_comp = v_HDAC4_N_proteinB_50[0]/proteinB_BASE_comp
+        
+    
+    #MEF2 regulate mir1 expression
+    #MEF2 control
+    params = np.concatenate(([baseline_camk], x))
+    s_local = setSimParams(s, params, start_state)
+    s_local.pre(prepace_dura)
+    d_MEF2_Ctr_0 = s_local.run(1)
+    v_MEF2_mir1_Ctr_0 = d_MEF2_Ctr_0['transcription.mir1'] 
+    v_MEF2_Ctr_0 = d_MEF2_Ctr_0['transcription.MEF2']   
+    #
+    #MEF2 KO
+    params = np.concatenate(([baseline_camk], x))
+    params[28] = 0  
+    s_local = setSimParams(s, params, start_state)
+    s_local.pre(prepace_dura)
+    d_MEF2_KO_0 = s_local.run(1)
+    v_MEF2_mir1_KO_0 = d_MEF2_KO_0['transcription.mir1']
+    v_MEF2_KO_0 = d_MEF2_KO_0['transcription.MEF2']    
+    #    
+    #MEF2 downexpress
+    params = np.concatenate(([baseline_camk], x))
+    params[28] = 0.94*x[27]
+    s_local = setSimParams(s, params, start_state)
+    s_local.pre(prepace_dura)
+    d_MEF2_DE_0 = s_local.run(1)
+    v_MEF2_mir1_DE_0 = d_MEF2_DE_0['transcription.mir1']
+    v_MEF2_DE_0 = d_MEF2_DE_0['transcription.MEF2']
+    #
+    #MEF2 overexpress 
+    params = np.concatenate(([baseline_camk], x))
+    params[28] = 1.12*x[27]
+    s_local = setSimParams(s, params, start_state)
+    s_local.pre(prepace_dura)
+    d_MEF2_OE_0 = s_local.run(1)
+    v_MEF2_mir1_OE_0 = d_MEF2_OE_0['transcription.mir1']
+    v_MEF2_OE_0 = d_MEF2_OE_0['transcription.MEF2']
+    
+    #normalize mir1 levels 2
+    v_MEF2_mir1_KO_0 = v_MEF2_mir1_KO_0[0]/mir1_BASE_comp
+    v_MEF2_mir1_DE_0 = v_MEF2_mir1_DE_0[0]/mir1_BASE_comp
+    v_MEF2_mir1_OE_0 = v_MEF2_mir1_OE_0[0]/mir1_BASE_comp 
+    
+    #normalize mir1 levels for figure
+    mir1_BASE_fig = v_CaMKII_mir1_Ctr
+    v_MEF2_mir1_Ctr_fig = v_CaMKII_mir1_Ctr/mir1_BASE_fig
+    v_MEF2_mir1_KO_fig = v_MEF2_mir1_KO_0/mir1_BASE_fig
+    v_MEF2_mir1_DE_fig = v_MEF2_mir1_DE_0/mir1_BASE_fig
+    v_MEF2_mir1_OE_fig = v_MEF2_mir1_OE_0/mir1_BASE_fig 
+    
+    
+    MEF2_solo_BASE = v_MEF2_Ctr_0[0]
+    v_MEF2_Ctr_0 = v_MEF2_Ctr_0[0]/MEF2_solo_BASE 
+    v_MEF2_KO_0 = v_MEF2_KO_0[0]/MEF2_solo_BASE
+    v_MEF2_DE_0 = v_MEF2_DE_0[0]/MEF2_solo_BASE
+    v_MEF2_OE_0 = v_MEF2_OE_0[0]/MEF2_solo_BASE
+             
+    #protein Cav1.2 decay
+    params = np.concatenate(([baseline_camk], x))
+    params[2] = 0
+    s_local = setSimParams(s, params, start_state)
+    s_local.pre(prepace_dura)
+    d_temp = s_local.run(1)
+    ProteinA_luciferase = np.array(d_temp['transcription.proteinA'])
+    ProteinA_BASE_luciferase = ProteinA_luciferase[0] 
+        
+    s_local.set_constant('CaMK.fixed_Active', baseline_camk)
+    s_local.set_constant('transcription.Prod_A', 0)
+    s_local.set_constant('transcription.Prod_B', 0)
+    s_local.set_constant('transcription.r1', x[2])
+    s_local.set_constant('transcription.r2', x[3])
+    s_local.set_constant('transcription.k1', x[4])
+    s_local.set_constant('transcription.k2', x[5])
+    s_local.set_constant('transcription.d4', x[6])
+    s_local.set_constant('transcription.kf', x[7])
+    s_local.set_constant('transcription.kb', x[8])
+    s_local.set_constant('transcription.d2', x[9])
+    s_local.set_constant('transcription.d3', x[10])
+    s_local.set_constant('transcription.k4', x[11])
+    s_local.set_constant('transcription.k5', x[12])
+    s_local.set_constant('transcription.d1', x[13])
+    s_local.set_constant('transcription.k3', x[14])
+    s_local.set_constant('transcription.ra', x[15])
+    s_local.set_constant('transcription.rb', x[16])
+    s_local.set_constant('transcription.r3', x[17])
+    s_local.set_constant('transcription.r4', x[18])
+    s_local.set_constant('transcription.alfa', x[19])
+    s_local.set_constant('transcription.Prod_1', x[20])
+    s_local.set_constant('transcription.d7',x[21])
+    s_local.set_constant('transcription.i5', x[22])
+    s_local.set_constant('transcription.f_MEF2', x[23])    
+    s_local.set_constant('transcription.Prod_HDAC4_C', x[24])    
+    s_local.set_constant('transcription.b1', x[25])
+    s_local.set_constant('transcription.yama', x[26])
+    s_local.set_constant('transcription.Prod_MEF2', x[27])
+    s_local.set_constant('transcription.a1', x[28])
+    s_local.set_constant('transcription.a2', x[29])
+    s_local.set_constant('transcription.c1', x[30])
+    s_local.set_constant('transcription.d8', x[31])
+    s_local.set_constant('transcription.d9', x[32])
+    s_local.set_constant('transcription.t', x[33])
+    s_local.set_constant('transcription.t1', x[34])
+    s_local.set_constant('transcription.Km', x[35])
+    s_local.set_constant('transcription.h', x[36])
+    s_local.set_constant('transcription.i6', x[37])
+    s_local.set_constant('transcription.b6', x[38])
+    s_local.set_constant('transcription.kc', x[39])  
+        
+    d2p = s_local.run(72*3600000, log_interval = 1)
+
+    ProteinA = np.array(d2p['transcription.proteinA'])
+    ProteinA_BASE = ProteinA[0]
+       
+    #Cav beta subunit decay
+    params = np.concatenate(([baseline_camk], x))
+    params[1] = 0
+    s_local = setSimParams(s, params, start_state)
+     
+    s_local.pre(prepace_dura)
+    d_temp = s_local.run(1)
+    ProteinB_luciferase = np.array(d_temp['transcription.proteinB'])
+    ProteinB_BASE_luciferase = ProteinB_luciferase[0] #Normalization factors (baseline CavBeta level) for luciferase experiments
+   
+    s_local.set_constant('CaMK.fixed_Active', baseline_camk)
+    s_local.set_constant('transcription.Prod_A', 0)
+    s_local.set_constant('transcription.Prod_B', 0)
+    s_local.set_constant('transcription.r1', x[2])
+    s_local.set_constant('transcription.r2', x[3])
+    s_local.set_constant('transcription.k1', x[4])
+    s_local.set_constant('transcription.k2', x[5])
+    s_local.set_constant('transcription.d4', x[6])
+    s_local.set_constant('transcription.kf', x[7])
+    s_local.set_constant('transcription.kb', x[8])
+    s_local.set_constant('transcription.d2', x[9])
+    s_local.set_constant('transcription.d3', x[10])
+    s_local.set_constant('transcription.k4', x[11])
+    s_local.set_constant('transcription.k5', x[12])
+    s_local.set_constant('transcription.d1', x[13])
+    s_local.set_constant('transcription.k3', x[14])
+    s_local.set_constant('transcription.ra', x[15])
+    s_local.set_constant('transcription.rb', x[16])
+    s_local.set_constant('transcription.r3', x[17])
+    s_local.set_constant('transcription.r4', x[18])
+    s_local.set_constant('transcription.alfa', x[19])
+    s_local.set_constant('transcription.Prod_1', x[20])
+    s_local.set_constant('transcription.d7',x[21])
+    s_local.set_constant('transcription.i5', x[22])
+    s_local.set_constant('transcription.f_MEF2', x[23])    
+    s_local.set_constant('transcription.Prod_HDAC4_C', x[24])    
+    s_local.set_constant('transcription.b1', x[25])
+    s_local.set_constant('transcription.yama', x[26])
+    s_local.set_constant('transcription.Prod_MEF2', x[27])
+    s_local.set_constant('transcription.a1', x[28])
+    s_local.set_constant('transcription.a2', x[29])
+    s_local.set_constant('transcription.c1', x[30])
+    s_local.set_constant('transcription.d8', x[31])
+    s_local.set_constant('transcription.d9', x[32])
+    s_local.set_constant('transcription.t', x[33])
+    s_local.set_constant('transcription.t1', x[34])
+    s_local.set_constant('transcription.Km', x[35])
+    s_local.set_constant('transcription.h', x[36])
+    s_local.set_constant('transcription.i6', x[37])
+    s_local.set_constant('transcription.b6', x[38])
+    s_local.set_constant('transcription.kc', x[39])   
+    
+    d2b = s_local.run(72*3600000, log_interval = 1)
+    ProteinBeta = np.array(d2b['transcription.proteinB'])
+    ProteinBeta_BASE = ProteinBeta[0]
+    
+    mRNAA = mRNAA/mRNAA_BASE  #Rosati mrna
+    ProteinA = ProteinA/ProteinA_BASE  #Daniel proteinA
+    ProteinBeta = ProteinBeta/ProteinBeta_BASE  #Marcel proteinBeta
+    Inact = Inact/Inact_BASE
+    Act = Act/Act_BASE    
+        
+    #mir1 CACNA1C 
+    v_mir1_ProteinA = np.zeros(len(Exp_mir1_CACNA1C_conc))
+    for k,c in enumerate(Exp_mir1_CACNA1C_conc):
+        params = np.concatenate(([baseline_camk], x))
+        params[2] = 0
+        s_local_mir1_A = setSimParams(s_mir1, params, start_state_mir1)
+        s_local_mir1_A.set_constant('transcription.mir1', Exp_mir1_CACNA1C_conc[k])
+        s_local_mir1_A.pre(prepace_dura)
+        d_mir1_A_0 = s_local_mir1_A.run(1)
+        v_mir1_A_0 = d_mir1_A_0['transcription.proteinA']
+        v_mir1_ProteinA[k] = v_mir1_A_0[0]/ProteinA_BASE  
+        
+        mir1_proteinA_Base =  v_mir1_ProteinA[0]
+        v_mir1_ProteinA_CTR = v_mir1_ProteinA[0]/mir1_proteinA_Base
+        v_mir1_ProteinA_ANTI = v_mir1_ProteinA[1]/mir1_proteinA_Base
+        v_mir1_ProteinA_OE = v_mir1_ProteinA[2]/mir1_proteinA_Base
+    
+    #mir1 CACNB2
+    v_mir1_ProteinB = np.zeros(len(Exp_mir1_CACNB2_conc))
+    for k,c in enumerate(Exp_mir1_CACNB2_conc):
+        params = np.concatenate(([baseline_camk], x))
+        params[1] = 0
+        s_local_mir1_B = setSimParams(s_mir1, params, start_state_mir1)
+        s_local_mir1_B.set_constant('transcription.mir1', Exp_mir1_CACNB2_conc[k])
+        s_local_mir1_B.pre(prepace_dura)
+        d_mir1_B_0 = s_local_mir1_B.run(1)
+        v_mir1_B_0 = d_mir1_B_0['transcription.proteinB']
+        v_mir1_ProteinB[k] = v_mir1_B_0[0]/ProteinBeta_BASE  
+        
+        mir1_proteinB_Base =  v_mir1_ProteinB[0]
+        v_mir1_ProteinB_CTR = v_mir1_ProteinB[0]/mir1_proteinB_Base
+        v_mir1_ProteinB_KO = v_mir1_ProteinB[1]/mir1_proteinB_Base
+        v_mir1_ProteinB_OE = v_mir1_ProteinB[2]/mir1_proteinB_Base
+        
+    #CaMKII overexpression -- mir-1 overexpression -- CACNA1C CACNB2 
+    v_CaMKII_ProteinA_OE = d_CaMKII_OE['transcription.proteinA']
+    v_CaMKII_ProteinA_OE = v_CaMKII_ProteinA_OE[0]/ProteinA_BASE 
+    v_CaMKII_ProteinB_OE = d_CaMKII_OE['transcription.proteinB']
+    v_CaMKII_ProteinB_OE = v_CaMKII_ProteinB_OE[0]/ProteinBeta_BASE
+    
+    #CaMKII Control -- CACNA1C CACNB2
+    v_CaMKII_ProteinA_Ctr = d_CaMKII_Ctr['transcription.proteinA']
+    v_CaMKII_ProteinA_Ctr = v_CaMKII_ProteinA_Ctr[0]/ProteinA_BASE     
+    v_CaMKII_ProteinB_Ctr = d_CaMKII_Ctr['transcription.proteinB']
+    v_CaMKII_ProteinB_Ctr = v_CaMKII_ProteinB_Ctr[0]/ProteinBeta_BASE  
+                       
+    
+    error_mrna_Rosati = np.sum((np.asarray(mRNAA[24])- Exp_Rosati_mRNA_Cav12_vals[1])**2) + np.sum((np.asarray(mRNAA[48])- Exp_Rosati_mRNA_Cav12_vals[2])**2) + np.sum((np.asarray(mRNAA[96])- Exp_Rosati_mRNA_Cav12_vals[3])**2) + np.sum((np.asarray(mRNAA[168])- Exp_Rosati_mRNA_Cav12_vals[4])**2)      
+    error_proteinA_Daniele = np.sum((np.asarray(ProteinA[0]) - Exp_Daniele_ProteinA[0])**2) + np.sum((np.asarray(ProteinA[4]) - Exp_Daniele_ProteinA[1])**2) + np.sum((np.asarray(ProteinA[10]) - Exp_Daniele_ProteinA[2])**2) + np.sum((np.asarray(ProteinA[25]) - Exp_Daniele_ProteinA[3])**2) 
+    error_proteinBeta_Marcel = np.sum((np.asarray(ProteinBeta[0]) - Exp_Marcel_ProteinB[0])**2) + np.sum((np.asarray(ProteinBeta[10]) - Exp_Marcel_ProteinB[1])**2) 
+    mRNAA_decay_error = np.sum(np.maximum(np.diff(np.asarray(mRNAA)), 0)**2)
+    ProteinA_decay_error = np.sum(np.maximum(np.diff(np.asarray(ProteinA)), 0)**2)
+    ProteinB_decay_error = np.sum(np.maximum(np.diff(np.asarray(ProteinBeta)), 0)**2)    
+    error_mir1ProteinA = np.sum((v_mir1_ProteinA_CTR - Exp_mir1_CACNA1C_protein[0])**2) + np.sum((v_mir1_ProteinA_ANTI - Exp_mir1_CACNA1C_protein[1])**2) + np.sum((v_mir1_ProteinA_OE - Exp_mir1_CACNA1C_protein[2])**2)    
+    error_mir1ProteinB = np.sum((v_mir1_ProteinB_CTR - Exp_mir1_CACNB2_protein[0])**2) + np.sum((v_mir1_ProteinB_KO - Exp_mir1_CACNB2_protein[1])**2) + np.sum((v_mir1_ProteinB_OE - Exp_mir1_CACNB2_protein[2])**2)        
+    error_MEF2mir1_Auinash = np.sum((v_MEF2_mir1_Ctr_fig - Exp_MEF2_mir1_Auinash[0])**2) + np.sum((v_MEF2_mir1_DE_fig - Exp_MEF2_mir1_Auinash[1])**2) + np.sum((v_MEF2_mir1_OE_fig - Exp_MEF2_mir1_Auinash[2])**2) 
+    error_MEF2mir1_Liu = np.sum((v_MEF2_mir1_KO_fig - Exp_MEF2_mir1_Liu[1])**2)
+    error_MEF2_solo = np.sum((v_MEF2_Ctr_0 - Exp_MEF2[0])**2) + np.sum((v_MEF2_KO_0 - 0)**2) + np.sum((v_MEF2_DE_0 - Exp_MEF2[1])**2) + np.sum((v_MEF2_OE_0 - Exp_MEF2[2])**2)
+    error_HDAC4_MEF2_Wang = np.sum((v_HDAC4_N_MEF2_0 - Exp_HDAC4_MEF2[0])**2) + np.sum((v_HDAC4_N_MEF2_15 - Exp_HDAC4_MEF2[1])**2) + np.sum((v_HDAC4_N_MEF2_50 - Exp_HDAC4_MEF2[2])**2)    
+    error_CaMKII_HDAC_C_Back = np.sum((v_CaMKII_HDAC4_C_Ctr - Exp_cytosol_HDAC4[0])**2) + np.sum((v_CaMKII_HDAC4_C_OE - Exp_cytosol_HDAC4[1])**2) + np.sum((v_CaMKII_HDAC4_C_KO - Exp_cytosol_HDAC4[2])**2)        
+    error_channel = np.sum((np.asarray(Act[0])- Exp_active_channel_vals[0])**2) + np.sum((np.asarray(Act[24])- Exp_active_channel_vals[1])**2) 
+    total_error = error_mrna_Rosati + error_proteinA_Daniele + error_proteinBeta_Marcel + mRNAA_decay_error + ProteinA_decay_error + ProteinB_decay_error + error_mir1ProteinA + error_mir1ProteinB + error_MEF2mir1_Auinash + error_MEF2mir1_Liu + error_MEF2_solo + error_HDAC4_MEF2_Wang + error_CaMKII_HDAC_C_Back + error_channel
+    
+    if showit == 1:
+         #Cav1.2 mRNA decay
+         plt.figure()
+         plt.plot(d2.time(), mRNAA / mRNAA[0], '-k', label='Simulation', linewidth=2)
+         plt.plot(Exp_Rosati_mRNA_Cav12_time, Exp_Rosati_mRNA_Cav12_vals, 'o', label='Rosati et al.(2011)')
+         plt.ylabel('Cav1.2 mRNA')
+         plt.xlabel('Time (hrs)')
+         plt.title('dynamic decay of total Cav1.2 mRNA')
+         legend = plt.legend()
+         for label in legend.get_texts():
+             label.set_fontweight('bold')
+         plt.show()         
+         
+         #Cav1.2 protein decay    
+         plt.figure()
+         plt.plot(d2p.time(), ProteinA / ProteinA[0], color='#BF5C6A', label='Sim. Cav1.2 Protein', linewidth=2)
+         plt.plot(Exp_Daniele_ProteinA_time, Exp_Daniele_ProteinA, 'o', color='#BF5C6A', markersize=6, label='Daniele et al.(2009)')
+         plt.ylabel('Protein density')
+         plt.xlabel('Time (hrs)')
+         plt.title('dynamic decay of Cav1.2 protein')
+         legend = plt.legend()
+         for label in legend.get_texts():
+             label.set_fontweight('bold')
+         plt.show()  
+         
+         #Cav beta subunit decay 
+         plt.figure(figsize=(10, 8))
+         groups = ['0h', '0h Sim', '10h', '10h Sim' ]
+         Cav_beta_expression_levels = [Exp_Marcel_ProteinB[0], ProteinBeta[0], Exp_Marcel_ProteinB[1], ProteinBeta[10]]
+         bar_width = 0.18
+         bars = plt.bar(groups, Cav_beta_expression_levels, color = ['#B2446B', '#f2ab15', '#B2446B', '#f2ab15'])
+         
+         for i in range(len(groups)): 
+             if "Sim" in groups[i]:
+                 bars[i].set_x(bars[i].get_x() - bar_width / 2)
+             else:
+                 bars[i].set_x(bars[i].get_x() + bar_width / 2)
+         
+         # Add text labels on top of each bar
+         for i, bar in enumerate(bars):
+             plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), str(round(Cav_beta_expression_levels[i], 5)),
+                      ha='center', va='bottom')
+         
+         
+         legend = plt.legend(bars, ['Marcel et al.(2011)', 'Simulation'], loc='upper right')
+         for label in legend.get_texts():
+             label.set_fontweight('bold')
+             
+         plt.ylabel('Cav beta protein levels')
+         plt.title('Cav beta protein decay with time')           
+
+         #mir1 regulate CACNA1C CACNB2
+         plt.figure(figsize=(10, 8))
+         plt.subplot(2, 1, 1)
+         groups = ['Ctr', 'Ctr Sim', 'anti_mir1', 'anti_mir1 Sim', 'mir1', 'mir1 Sim' ]
+         Cav12_expression_levels = [Exp_mir1_CACNA1C_protein[0], v_mir1_ProteinA_CTR, Exp_mir1_CACNA1C_protein[1], v_mir1_ProteinA_ANTI, Exp_mir1_CACNA1C_protein[2], v_mir1_ProteinA_OE]
+         bar_width = 0.18
+         bars = plt.bar(groups, Cav12_expression_levels, color = ['#B2446B', '#f2ab15', '#B2446B', '#f2ab15', '#B2446B', '#f2ab15'])
+         
+         for i in range(len(groups)): 
+             if "Sim" in groups[i]:
+                 bars[i].set_x(bars[i].get_x() - bar_width / 2)
+             else:
+                 bars[i].set_x(bars[i].get_x() + bar_width / 2)
+         
+         # Add text labels on top of each bar
+         for i, bar in enumerate(bars):
+             plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), str(round(Cav12_expression_levels[i], 5)),
+                      ha='center', va='bottom')
+         
+         
+         legend = plt.legend(bars, ['Rau et al.(2011)', 'Simulation'], loc='upper right')
+         for label in legend.get_texts():
+             label.set_fontweight('bold')
+             
+         plt.ylabel('Luc activity of Cav1.2 protein')
+         plt.title('Cav1.2 protein levels upton miR-1')
+         
+         plt.subplot(2, 1, 2)
+         groups = ['Ctr', 'Ctr Sim', 'anti_mir1', 'anti_mir1 Sim', 'mir1', 'mir1 Sim' ]
+         CACNB2_expression_levels = [Exp_mir1_CACNB2_protein[0], v_mir1_ProteinB_CTR, Exp_mir1_CACNB2_protein[1], v_mir1_ProteinB_KO, Exp_mir1_CACNB2_protein[2], v_mir1_ProteinB_OE]
+         bar_width = 0.18
+         bars = plt.bar(groups, CACNB2_expression_levels, color = ['#3B3C36', '#8FBC8F', '#3B3C36', '#8FBC8F', '#3B3C36', '#8FBC8F'])
+         
+         for i in range(len(groups)): 
+             if "Sim" in groups[i]:
+                 bars[i].set_x(bars[i].get_x() - bar_width / 2)
+             else:
+                 bars[i].set_x(bars[i].get_x() + bar_width / 2)
+         
+         # Add text labels on top of each bar
+         for i, bar in enumerate(bars):
+             plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), str(round(CACNB2_expression_levels[i], 5)),
+                      ha='center', va='bottom')
+         
+         
+         legend = plt.legend(bars, ['Yingmin et al.(2015)', 'Simulation'], loc='upper right')
+         for label in legend.get_texts():
+             label.set_fontweight('bold')
+             
+         plt.ylabel('Normalized CACNB2 protein expression levels')
+         plt.title('Cav beta protein levels upton miR-1')
+         
+         plt.tight_layout()
+         plt.show()
+                             
+         #MEF2C regulate mir1
+         plt.figure()
+         groups = ['Ctr', 'Ctr Sim', 'KO', 'KO Sim', 'DE', 'DE Sim', 'OE', 'OE Sim']
+         mir1_expression_levels = [Exp_MEF2_mir1_Auinash[0], v_MEF2_mir1_Ctr_fig, Exp_MEF2_mir1_Liu[1], v_MEF2_mir1_KO_fig, Exp_MEF2_mir1_Auinash[1], v_MEF2_mir1_DE_fig, Exp_MEF2_mir1_Auinash[2], v_MEF2_mir1_OE_fig]
+         bar_width = 0.18 
+         bars = plt.bar(groups, mir1_expression_levels, color=['#126180', '#E4717A', '#126180', '#E4717A', '#126180', '#E4717A', '#126180', '#E4717A'])
+         
+         for i in range(len(groups)):
+             if "Sim" in groups[i]:
+                 bars[i].set_x(bars[i].get_x() - bar_width / 2)
+             else:
+                 bars[i].set_x(bars[i].get_x() + bar_width / 2)
+         # Add text labels on top of each bar
+         for i, bar in enumerate(bars):
+             plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), str(round(mir1_expression_levels[i], 5)),
+                      ha='center', va='bottom')
+
+                                 
+         legend = plt.legend(bars, ['Experimental', 'Simulation'], loc='upper left')
+         for label in legend.get_texts():
+             label.set_fontweight('bold')
+         plt.xlabel('MEF2 expression levels')
+         plt.ylabel('fold change of miR-1 expression')
+         plt.title('miR-1 levels in response to MEF2')
+         plt.show()  
+                                   
+         #HDAC4 regulate MEF2C
+         plt.figure()
+         groups = ['0 exp', '0 Sim', '15 exp', '15 Sim', '50 exp', '50 Sim']
+         MEF2_expression_levels = [Exp_HDAC4_MEF2[0], v_HDAC4_N_MEF2_0, Exp_HDAC4_MEF2[1], v_HDAC4_N_MEF2_15, Exp_HDAC4_MEF2[2], v_HDAC4_N_MEF2_50]
+         bar_width = 0.18  
+         bars = plt.bar(groups, MEF2_expression_levels, color=['#B2446B', '#f2ab15', '#B2446B', '#f2ab15', '#B2446B', '#f2ab15'])
+  
+         for i in range(len(groups)):
+             if "Sim" in groups[i]:
+                 bars[i].set_x(bars[i].get_x() - bar_width / 2)
+             else:
+                 bars[i].set_x(bars[i].get_x() + bar_width / 2)
+         # Add text labels on top of each bar
+         for i, bar in enumerate(bars):
+             plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), str(round(MEF2_expression_levels[i], 5)),
+                      ha='center', va='bottom')
+
+  
+         legend = plt.legend(bars[:2], ['Wang et al.(1999)', 'Simulation'], loc='upper right')
+         
+         for label in legend.get_texts():
+             label.set_fontweight('bold')
+         plt.ylabel('Relative Luc Activity of MEF2 (-fold)')
+         plt.xlabel('HDAC4 (ng)')
+         plt.title('MEF2 levels in response to HDAC4 in different concentrations')
+         plt.show()
+         
+         #CaMKII translocate HDAC4
+         plt.figure()
+         groups = ['Ctr exp', 'Ctr Sim', 'OE exp', 'OE Sim', 'KO exp', 'KO Sim']
+         Cytosol_HDAC4_expression_levels = [Exp_cytosol_HDAC4[0], v_CaMKII_HDAC4_C_Ctr, Exp_cytosol_HDAC4[1], v_CaMKII_HDAC4_C_OE, Exp_cytosol_HDAC4[2], v_CaMKII_HDAC4_C_KO]
+         bar_width = 0.18  
+         bars = plt.bar(groups, Cytosol_HDAC4_expression_levels, color=['#B2446B', '#f2ab15', '#B2446B', '#f2ab15', '#B2446B', '#f2ab15'])
+  
+         for i in range(len(groups)):
+             if "Sim" in groups[i]:
+                 bars[i].set_x(bars[i].get_x() - bar_width / 2)
+             else:
+                 bars[i].set_x(bars[i].get_x() + bar_width / 2)
+         # Add text labels on top of each bar
+         for i, bar in enumerate(bars):
+             plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), str(round(Cytosol_HDAC4_expression_levels[i], 5)),
+                      ha='center', va='bottom')
+
+  
+         legend = plt.legend(bars[:2], ['Backs et al.(2009)', 'Simulation'], loc='upper right')
+         
+         for label in legend.get_texts():
+             label.set_fontweight('bold')
+         plt.ylabel('Cytosol HDAC4(%)')
+         plt.xlabel('CaMKII expression levels')
+         plt.title('Cytosol HDAC4 levels in response to different CaMKII levels')
+         plt.show()                               
+                        
+    print ("x=",x)
+    print("Error: %f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" % (total_error, error_mrna_Rosati, error_proteinA_Daniele, error_proteinBeta_Marcel, mRNAA_decay_error, ProteinA_decay_error, ProteinB_decay_error, error_mir1ProteinA, error_mir1ProteinB, error_MEF2mir1_Auinash, error_MEF2mir1_Liu, error_MEF2_solo, error_HDAC4_MEF2_Wang, error_CaMKII_HDAC_C_Back, error_channel))
+    return total_error
+
+
+
+Initial_guess = np.asarray([1.30099683e+00, 1.97467911e+00, 2.93318124e-02, 6.59837279e-02, 3.01680000e-02, 2.53236719e-02, 3.47572467e-01, 7.12697556e+00, 3.41741648e-02, 1.11897819e-01, 3.59272102e-06, 8.23199563e-02, 4.59957045e-01, 2.22420433e-01, 6.92123797e+01, 1.20201575e-04, 1.25117858e-04, 3.43147043e-02, 6.02359509e-02, 1.40000000e+00, 2.72594786e+00, 9.14349631e-02, 2.40462402e-02, 5.91762743e+00, 1.06630299e+01, 4.91880317e-01, 4.57398508e+00, 1.01762445e+01, 9.30618625e+01, 8.64036441e-02, 3.57338094e+00, 5.35967422e-01, 1.19026831e-01, 1.95000000e+00, 1.33484504e+00, 1.20000000e+01, 2.00000000e+00, 5.67095800e-02, 7.16121452e-01, 3.45606521e-01])
+#Prod_A, Prod_B, r1, r2, k1, k2, d4, kf, kb, d2, d3, k4, k5, d1, k3, ra, rb, r3, r4, alfa, Prod_1, d7, i5, f_MEF2, Prod_HDAC4_C, b1, yama, Prod_MEF2, a1, a2, c1, d8, d9, t, t1, Km, h, i6, b6, kc
+ 
+
+errorfunc(Initial_guess, showit = 1)
+
+
+bnds = (0.0, 100.0)
+
+bounds = tuple(bnds for fund in range(len(Initial_guess)))
+
+Res = sp.optimize.minimize(errorfunc, x0=Initial_guess, args=(), method='Nelder-Mead', jac=None, hess=None, 
+                           hessp = None, bounds=None, tol=1e-13, callback=None, options={'maxiter':200, 'adaptive':True, 
+                           'return_all':True, 'xatol':1e-13, 'fatol':1e-13})
+                           
+final = Res.x
+print(Res)
+
+errorfunc(final, 1)
+
+
