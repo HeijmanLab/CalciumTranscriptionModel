@@ -1,1 +1,296 @@
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
+import numpy as np
+import matplotlib.patches as mpatches
+from matplotlib import gridspec
+
+
+rcParams['font.family'] = 'Arial'
+rcParams['font.size'] = 12
+rcParams['font.weight'] = 'bold'
+
+
+figsize = (17.6 / 2.54, 14 / 2.54)
+bar_width = 0.35
+
+freqs_A = ['0.5', '1', '5', '8']
+exp_data_A = [42.165, 44.701, 68.376, 100]
+sim_data_A = [24.969, 37.121, 70.775, 100]
+err_exp_A = [0.688, 0.774, 3.419, 4.273]
+x_pos = np.arange(len(freqs_A))
+
+groups_B = ['CTR', 'OE', 'KO']
+exp_data_B = [100.000, 350.000, 31.400]
+sim_data_B = [100.000, 344.560, 45.502]
+
+freqs_C = ['0', '15', '50']
+exp_data_C = [100, 5.554, 1.479]
+sim_data_C = [100, 5.454, 1.445]
+err_exp_C = [36.364, 2.424, 0]
+x_pos = np.arange(len(freqs_C))
+
+groups_D = ['CTR', 'KO', 'DE', 'OE']
+exp_data_D = [100.000, 34.277, 58.491, 125.943]
+sim_data_D = [100.000, 22.748, 62.919, 154.466]
+err_exp_D = [0, 4.245, 6.604, 30.660]
+x_pos = np.arange(len(groups_D))
+
+COL_ERICKSON  = '#8583A9'
+COL_SEPULVEDA = '#CA8BA8'
+COL_BACKS     = '#A5CCC7'
+COL_WANG      = '#F2A65A'
+COL_LIU       = '#7DB0D5'
+COL_KALSOTRA   = '#8FCB9B'
+
+SIM_EDGE  = '#4D4D4D'
+SIM_HATCH = '///'
+
+exp_colors_A = [COL_ERICKSON, COL_ERICKSON, COL_SEPULVEDA, COL_SEPULVEDA]
+exp_color_B  = COL_BACKS
+exp_color_C  = COL_WANG
+exp_colors_D = [COL_LIU, COL_LIU, COL_KALSOTRA, COL_KALSOTRA]
+
+fig = plt.figure(figsize=figsize)
+gs = gridspec.GridSpec(2, 2, wspace=0.45, hspace=0.50)
+
+axA = fig.add_subplot(gs[0, 0])
+axB = fig.add_subplot(gs[0, 1])
+
+subC = gs[1, 0].subgridspec(2, 1, height_ratios=[1, 2], hspace=0.28)
+axC_top = fig.add_subplot(subC[0, 0])
+axC_bot = fig.add_subplot(subC[1, 0], sharex=axC_top)
+
+axD = fig.add_subplot(gs[1, 1])
+for ax in [axA, axB, axC_top, axC_bot, axD]:
+    ax.tick_params(labelsize=10)
+
+
+# Figure 2A
+x_A = np.arange(len(freqs_A))
+axA.bar(x_A - bar_width/2, exp_data_A, width=bar_width, color=exp_colors_A, edgecolor='black',
+    yerr=[np.zeros_like(err_exp_A), err_exp_A], capsize=3, error_kw=dict(lw=1, capthick=1))
+axA.bar(x_A + bar_width/2, sim_data_A, width=bar_width,
+        facecolor='none', edgecolor=SIM_EDGE, hatch=SIM_HATCH, linewidth=1)
+
+axA.set_xticks(x_A)
+axA.set_xticklabels(freqs_A)
+axA.set_ylabel("Relative CaMKII Activity\n(% of 8 Hz)", fontweight='bold', fontsize='12')
+axA.set_xlabel("Pacing Frequency (Hz)", fontweight='bold', fontsize='12')
+axA.set_ylim(0, 120)
+
+
+# Figure 2B
+x_B = np.arange(len(groups_B))
+axB.bar(x_B - bar_width/2, exp_data_B, width=bar_width, color=exp_color_B, edgecolor='black')
+axB.bar(x_B + bar_width/2, sim_data_B, width=bar_width,
+        facecolor='none', edgecolor=SIM_EDGE, hatch=SIM_HATCH, linewidth=1)
+
+axB.set_xticks(x_B)
+axB.set_xticklabels(groups_B)
+axB.set_ylabel("Relative Cytosolic HDAC4\n(% of CTR)", fontweight='bold', fontsize='12')
+axB.set_xlabel("CaMKII Expression Level", fontweight='bold', fontsize='12')
+axB.set_ylim(0, max(exp_data_B + sim_data_B) * 1.2)
+
+
+# Figure 2C
+x_C = np.arange(len(freqs_C))
+threshold_top, threshold_bot = 70, 10
+
+exp_C_top = np.array([v - threshold_top if v > threshold_top else 0 for v in exp_data_C], dtype=float)
+sim_C_top = np.array([v - threshold_top if v > threshold_top else 0 for v in sim_data_C], dtype=float)
+
+for i, h in enumerate(exp_C_top):
+    if h > 0:
+        axC_top.bar(
+            x_C[i] - bar_width/2, h, bottom=threshold_top,
+            width=bar_width, color=exp_color_C,
+            edgecolor='black', linewidth=1
+        )
+
+
+if sim_C_top[0] > 0:
+    axC_top.bar(
+        x_C[0] + bar_width/2, sim_C_top[0], bottom=threshold_top,
+        width=bar_width, facecolor='none',
+        edgecolor=SIM_EDGE, hatch=SIM_HATCH, linewidth=1
+    )
+
+axC_top.spines['bottom'].set_visible(False)
+axC_top.tick_params(labelbottom=False, bottom=False)
+axC_top.set_ylim(70, 150)
+axC_top.set_yticks([70, 110, 150])
+
+
+exp_C_bot = [min(v, threshold_bot) for v in exp_data_C]
+sim_C_bot = [min(v, threshold_bot) for v in sim_data_C]
+
+axC_bot.bar(x_C - bar_width/2, exp_C_bot, width=bar_width, color=exp_color_C, edgecolor='black')
+axC_bot.bar(x_C + bar_width/2, sim_C_bot, width=bar_width,
+            facecolor='none', edgecolor=SIM_EDGE, hatch=SIM_HATCH, linewidth=1)
+
+exp_data_C = np.array(exp_data_C)
+err_exp_C  = np.array(err_exp_C)
+idx = np.array([0, 1]) 
+x_err = x_C[idx] - bar_width/2
+y_end = exp_data_C[idx] + err_exp_C[idx]
+
+cap = bar_width * 0.18
+lw = 1
+
+axC_bot.set_ylim(0, threshold_bot)
+axC_bot.spines['top'].set_visible(False)
+axC_bot.set_xticks(x_C)
+axC_bot.set_xticklabels(freqs_C)
+axC_bot.set_xlabel("HDAC4 (ng)", fontweight='bold', fontsize='12')
+
+# Figure 2C
+
+exp_data_C = np.array(exp_data_C, dtype=float)
+err_exp_C  = np.array(err_exp_C, dtype=float)
+
+x0 = x_C[0] - bar_width/2  
+x1 = x_C[1] - bar_width/2   
+
+axC_top.errorbar(
+    x0, exp_data_C[0],
+    yerr=np.array([[0.0], [err_exp_C[0]]]),   # 仅上误差
+    fmt='none',
+    ecolor='black',
+    elinewidth=1,
+    capsize=3,
+    capthick=1,
+    zorder=10
+)
+
+axC_bot.errorbar(
+    x1, exp_data_C[1],
+    yerr=np.array([[0.0], [err_exp_C[1]]]),   # 仅上误差
+    fmt='none',
+    ecolor='black',
+    elinewidth=1,
+    capsize=3,
+    capthick=1,
+    zorder=10
+)
+
+
+
+# Figure 2D
+x_D = np.arange(len(groups_D))
+axD.bar(x_D - bar_width/2, exp_data_D, width=bar_width, color=exp_colors_D, edgecolor='black',
+    yerr=[np.zeros_like(err_exp_D), err_exp_D], capsize=3, error_kw=dict(lw=1, capthick=1))
+axD.bar(x_D + bar_width/2, sim_data_D, width=bar_width,
+        facecolor='none', edgecolor=SIM_EDGE, hatch=SIM_HATCH, linewidth=1)
+
+axD.set_xticks(x_D)
+axD.set_xticklabels(groups_D)
+axD.set_ylabel("Relative miR-1 Expression\n(% of CTR)", fontweight='bold', fontsize='12')
+axD.set_xlabel("MEF2 Expression Levels", fontweight='bold', fontsize='12')
+axD.set_ylim(0, 170)
+
+legend_elements = [
+    mpatches.Patch(color=COL_ERICKSON,  label='Erickson et al. (2011)'),
+    mpatches.Patch(color=COL_SEPULVEDA, label='Sepulveda et al. (2013)'),
+    mpatches.Patch(color=COL_BACKS,     label='Backs et al. (2009)'),
+    mpatches.Patch(color=COL_WANG,      label='Wang et al. (1999)'),
+    mpatches.Patch(color=COL_LIU,       label='Liu et al. (2007)'),
+    mpatches.Patch(color=COL_KALSOTRA,   label='Kalsotra et al. (2014)'),
+    mpatches.Patch(facecolor='none', edgecolor=SIM_EDGE,
+                   hatch=SIM_HATCH, label='Simulation', linewidth=1),
+]
+
+fig.subplots_adjust(left=0.08, right=0.9, top=1, bottom=0.10)
+fig.legend(handles=legend_elements, loc='center left',
+           bbox_to_anchor=(0.95, 0.55), frameon=False, fontsize='11')
+
+fig.canvas.draw()
+renderer = fig.canvas.get_renderer()
+
+def ax_bbox(ax):
+    return ax.get_window_extent(renderer=renderer).transformed(fig.transFigure.inverted())
+
+bboxA = ax_bbox(axA)
+fig.text(
+    bboxA.x0 - 0.14,   
+    bboxA.y1 + 0.03,   
+    "A",
+    ha='left', va='bottom',
+    fontweight='bold',
+    fontsize='12'
+)
+
+bboxB = ax_bbox(axB)
+fig.text(
+    bboxB.x0 - 0.14,
+    bboxB.y1 + 0.03,
+    "B",
+    ha='left', va='bottom',
+    fontweight='bold',
+    fontsize='12'
+)
+
+bboxC_top = ax_bbox(axC_top)
+bboxC_bot = ax_bbox(axC_bot)
+
+c_x0 = min(bboxC_top.x0, bboxC_bot.x0)
+c_y1 = max(bboxC_top.y1, bboxC_bot.y1)
+
+fig.text(
+    c_x0 - 0.14,
+    c_y1 + 0.03,
+    "C",
+    ha='left', va='bottom',
+    fontweight='bold',
+    fontsize='12'
+)
+
+bboxD = ax_bbox(axD)
+fig.text(
+    bboxD.x0 - 0.14,
+    bboxD.y1 + 0.03,
+    "D",
+    ha='left', va='bottom',
+    fontweight='bold',
+    fontsize='12'
+)
+
+
+fig.canvas.draw()
+renderer = fig.canvas.get_renderer()
+
+def bbox_in_fig(ax):
+    return ax.get_window_extent(renderer=renderer).transformed(fig.transFigure.inverted())
+
+bbox_C_top = bbox_in_fig(axC_top)
+bbox_C_bot = bbox_in_fig(axC_bot)
+
+c_x0 = min(bbox_C_top.x0, bbox_C_bot.x0)
+c_y0 = min(bbox_C_top.y0, bbox_C_bot.y0)
+c_y1 = max(bbox_C_top.y1, bbox_C_bot.y1)
+c_yc = 0.5 * (c_y0 + c_y1)
+
+ylabel_x = c_x0 - 0.08
+fig.text(
+    ylabel_x, c_yc,
+    "Relative Activity of MEF2\n(% of 0 ng)",
+    rotation='vertical',
+    va='center', ha='center',
+    fontweight='bold',
+    fontsize='12'
+)
+from pathlib import Path
+
+script_dir = Path(__file__).resolve().parent
+
+output_dir = script_dir / "Output"
+output_dir.mkdir(parents=True, exist_ok=True)
+save_path = output_dir / "figure2 with error bar.jpg"
+plt.savefig(save_path, dpi=300, bbox_inches="tight")
+
+plt.show()
+
+
+
+
+
 
