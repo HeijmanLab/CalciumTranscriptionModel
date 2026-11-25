@@ -1,0 +1,16 @@
+,paper value,percentage value,
+MEF mir-1-1/mir-1-2 ctr group,1,100,
+MEF2 DE mir-1-1,0.547169811,54.7169811,
+error bar for MEF2 DE mir-1-1,0.603773585,60.3773585,5.6603774
+MEF2 OE mir-1-1,1.273584906,127.3584906,
+error bar for MEF2 OE mir-1-1,1.547169811,154.7169811,27.3584905
+MEF2 DE mir-1-2,0.622641509,62.2641509,
+error bar for MEF2 DE mir-1-2,0.698113208,69.8113208,7.5471699
+MEF2 OE mir-1-2,1.245283019,124.5283019,
+error bar for MEF2 OE mir-1-2,1.58490566,158.490566,33.9622641
+,,,
+,,,
+average MEF2 DE mir1,,58.490566,
+average error bar for MEF2 DE,,6.60377365,
+average MEF2 OE mir1,,125.9433963,
+avegrae error bar for MEF2 OE,,30.6603773,
