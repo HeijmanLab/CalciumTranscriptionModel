@@ -1,0 +1,346 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from matplotlib.colors import TwoSlopeNorm
+
+from pathlib import Path
+script_dir = Path(__file__).resolve().parent
+ROOT_DIR = script_dir.parent / "Data" / "Supplements Figure 1"
+DIR_1HZ = ROOT_DIR / "simulation results of 1Hz 100 run"
+DIR_3HZ = ROOT_DIR / "simulation results of 3Hz 100 run"
+
+SAVE_DIR = script_dir / "Output" / "Supplements Figure 1"
+SAVE_DIR.mkdir(parents=True, exist_ok=True)
+
+N_RUNS = 100
+DPI = 600
+WIDTH_CM = 20
+HEIGHT_CM = 28.0
+FIG_SIZE = (WIDTH_CM / 2.54, HEIGHT_CM / 2.54)
+SHOW_FIGURE = True
+SHARE_CA_Y_AXIS = True
+
+OUTPUT_COLUMNS = ["relative_active_LTCC", "CaTamp", "APD90_ms"]
+# Full name is deliberately retained; line breaks prevent overlap in narrow panels.
+OUTPUT_TICK_LABELS = ["Relative\nActive\nLTCC", r"$\Delta[\mathrm{Ca}^{2+}]_i$", r"$\mathrm{APD}_{90}$"]
+
+# Publication typography (pt)
+PANEL_LETTER_SIZE = 10
+PANEL_TITLE_SIZE = 9
+AXIS_LABEL_SIZE = 9
+AXIS_TICK_SIZE = 6.6
+INPUT_PARAMETER_SIZE = 6.3
+OUTPUT_CATEGORY_SIZE = 6.5
+COLORBAR_LABEL_SIZE = 8.5
+
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
+    "font.size": 7,
+    "axes.linewidth": 0.7,
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
+    "svg.fonttype": "none",
+    "savefig.facecolor": "white",
+})
+
+
+# ======================== 2. LOAD DATA ========================
+def read_run_table(path: Path) -> pd.DataFrame:
+    if not path.is_file():
+        raise FileNotFoundError(f"Missing CSV: {path}")
+    df = pd.read_csv(path)
+    if "run" not in df.columns:
+        raise ValueError(f"Missing 'run' column in {path}")
+
+    raw = df.pop("run").astype(str).str.strip()
+    parsed = raw.str.extract(r"^(?:run_)?0*(\d+)(?:\.0)?$")[0]
+    if parsed.isna().any():
+        raise ValueError(f"Unrecognized run ID in {path}: {raw[parsed.isna()].iloc[0]}")
+
+    df.index = pd.Index(parsed.astype(int).to_numpy(), name="run")
+    if df.index.has_duplicates:
+        raise ValueError(f"Duplicate run IDs in {path}")
+    return df.sort_index()
+
+
+def load_frequency(folder: Path):
+    scales = read_run_table(folder / "population_scaling_factors_100runs.csv")
+    outputs = read_run_table(folder / "sensitivity_outputs.csv")
+    missing = set(OUTPUT_COLUMNS) - set(outputs.columns)
+    if missing:
+        raise ValueError(f"Missing output columns in {folder}: {sorted(missing)}")
+    return scales, outputs.loc[:, OUTPUT_COLUMNS].copy()
+
+
+def load_and_align():
+    scales1, outs1 = load_frequency(DIR_1HZ)
+    scales3, outs3 = load_frequency(DIR_3HZ)
+    run_ids = pd.Index(range(1, N_RUNS + 1), name="run")
+
+    for name, df in [
+        ("1 Hz scaling", scales1), ("3 Hz scaling", scales3),
+        ("1 Hz outputs", outs1), ("3 Hz outputs", outs3),
+    ]:
+        if set(df.index) != set(run_ids):
+            missing = sorted(set(run_ids) - set(df.index))
+            extra = sorted(set(df.index) - set(run_ids))
+            raise ValueError(f"{name}: missing runs={missing}; extra runs={extra}")
+
+    if set(scales1.columns) != set(scales3.columns):
+        raise ValueError("1 Hz and 3 Hz input parameter names differ.")
+
+    scales1 = scales1.loc[run_ids].apply(pd.to_numeric, errors="raise")
+    scales3 = scales3.loc[run_ids, scales1.columns].apply(pd.to_numeric, errors="raise")
+    outs1 = outs1.loc[run_ids].apply(pd.to_numeric, errors="raise")
+    outs3 = outs3.loc[run_ids].apply(pd.to_numeric, errors="raise")
+
+    for name, df in [("Input", scales1), ("1 Hz output", outs1), ("3 Hz output", outs3)]:
+        if not np.isfinite(df.to_numpy(dtype=float)).all():
+            raise ValueError(f"{name} contains NaN/inf values")
+
+    if not np.allclose(scales1.to_numpy(), scales3.to_numpy(), rtol=1e-8, atol=1e-10):
+        raise ValueError(
+            "The input scaling factors for 1 Hz / 3 Hz are not identical for "
+            "the same run IDs. One shared Panel A would be misleading."
+        )
+
+    print(f"Matched virtual cells: {len(run_ids)}")
+    print(f"Input parameters: {scales1.shape[1]}")
+    return run_ids, scales1, outs1, outs3
+
+
+def standardize_outputs(df: pd.DataFrame):
+    """Z-scores computed within each frequency, as in the original scripts."""
+    sd = df.std(ddof=1)
+    if (sd <= 0).any() or not np.isfinite(sd).all():
+        raise ValueError("At least one output has an invalid standard deviation")
+    return (df - df.mean()) / sd
+
+
+def load_final_beats(folder: Path, run_ids: pd.Index):
+    traces = {}
+    for run in run_ids:
+        csv_path = folder / f"final_beat_run_{int(run):03d}.csv"
+        if not csv_path.is_file():
+            raise FileNotFoundError(f"Missing final-beat CSV: {csv_path}")
+        df = pd.read_csv(csv_path)
+        required = ("time_ms", "Vm", "Ca")
+        missing = set(required) - set(df.columns)
+        if missing:
+            raise ValueError(f"Missing columns in {csv_path.name}: {sorted(missing)}")
+        df = df.loc[:, required].apply(pd.to_numeric, errors="raise")
+        if df.empty or not np.isfinite(df.to_numpy()).all():
+            raise ValueError(f"Empty/invalid trace in {csv_path}")
+        traces[int(run)] = df
+    print(f"Loaded {len(traces)} final-beat traces from {folder.name}")
+    return traces
+
+
+# ======================== 3. DRAWING HELPERS ========================
+def panel_header(ax, letter: str, title: str):
+    """Fixed *point* offset: A-G align equally despite different axes widths."""
+    ax.annotate(
+        letter, xy=(0, 1), xycoords="axes fraction",
+        xytext=(-12, 7), textcoords="offset points",
+        ha="left", va="bottom", fontsize=PANEL_LETTER_SIZE,
+        fontweight="bold", annotation_clip=False,
+    )
+    ax.set_title(title, loc="center", fontsize=PANEL_TITLE_SIZE,
+                 fontweight="bold", pad=8)
+
+
+def style_axis_label(ax, name, axis="x", pad=3):
+    fn = ax.set_xlabel if axis == "x" else ax.set_ylabel
+    fn(name, fontsize=AXIS_LABEL_SIZE, fontweight="bold", labelpad=pad)
+
+
+def plot_overlay(ax, traces: dict, field: str, hz: int,
+                 color_map: dict, ylim):
+    for run, trace in traces.items():
+        ax.plot(trace["time_ms"], trace[field],
+                color=color_map[run], linewidth=0.65, alpha=0.68)
+
+    if field == "Vm":
+    # AP: retain left margin to show upstroke
+        if hz == 1:
+            ax.set_xlim(-50, 500)
+        else:
+            ax.set_xlim(-20, 500)
+    else:
+    # Calcium transient
+        ax.set_xlim(0, 500)
+
+    ax.set_xticks([0, 100, 200, 300, 400, 500])
+    ax.set_ylim(ylim)
+    style_axis_label(ax, "Time (ms)", "x", pad=3)
+    if field == "Vm":
+        style_axis_label(ax, r"$\mathbf{V}_{\mathbf{m}}$ (mV)", "y", pad=3)
+    else:
+        style_axis_label(ax, r"$[\mathbf{Ca}^{\mathbf{2+}}]_{\mathbf{i}}$ (nM)", "y", pad=3)
+
+    ax.tick_params(direction="out", labelsize=AXIS_TICK_SIZE,
+                   length=2.5, width=0.6, pad=2)
+    ax.grid(color="0.86", linewidth=0.5, alpha=0.70)
+    ax.set_axisbelow(True)
+
+
+def plot_output_heatmap(ax, df_z: pd.DataFrame, norm):
+    ax.imshow(df_z.to_numpy(dtype=float), cmap="RdBu_r", norm=norm,
+              interpolation="nearest", origin="upper", aspect="auto",
+              rasterized=True)
+    ax.set_xticks(np.arange(len(OUTPUT_COLUMNS)))
+    ax.set_xticklabels(OUTPUT_TICK_LABELS,
+                       fontsize=OUTPUT_CATEGORY_SIZE, fontweight="normal",
+                       ha="center", linespacing=1.0)
+    ax.tick_params(axis="x", length=0, pad=4)
+    ax.set_yticks([])
+    style_axis_label(ax, "Virtual cells", "y", pad=2)
+    for spine in ax.spines.values():
+        spine.set_linewidth(0.6)
+
+
+def trace_limits(traces1, traces3, field):
+    vals = [d[field].to_numpy() for d in (*traces1.values(), *traces3.values())]
+    return min(map(np.min, vals)), max(map(np.max, vals))
+
+
+def style_colorbar(cbar, label):
+    cbar.set_label(label, fontsize=COLORBAR_LABEL_SIZE,
+                   fontweight="bold", labelpad=8)
+    cbar.ax.tick_params(labelsize=AXIS_TICK_SIZE, length=2, pad=2)
+    cbar.outline.set_linewidth(0.6)
+
+
+# ======================== 4. ASSEMBLY ========================
+def main():
+    SAVE_DIR.mkdir(parents=True, exist_ok=True)
+
+    run_ids, scales, outs1, outs3 = load_and_align()
+    z1 = standardize_outputs(outs1)
+    z3 = standardize_outputs(outs3)
+    traces1 = load_final_beats(DIR_1HZ, run_ids)
+    traces3 = load_final_beats(DIR_3HZ, run_ids)
+
+    # Preserve multicolored overlays; each virtual cell uses the same color at both Hz.
+    cmap = plt.get_cmap("tab20")
+    colors = {int(run): cmap((int(run) - 1) % 20) for run in run_ids}
+
+    lim = max(float(np.abs(z1.to_numpy()).max()),
+              float(np.abs(z3.to_numpy()).max()))
+    z_abs = max(0.5, np.ceil(2 * lim) / 2)
+    z_norm = TwoSlopeNorm(vmin=-z_abs, vcenter=0, vmax=z_abs)
+    print(f"Shared z-score color limits: {-z_abs:g} to +{z_abs:g}")
+
+    vmin, vmax = trace_limits(traces1, traces3, "Vm")
+    vm_ylim = (np.floor((vmin - 2) / 10) * 10,
+               np.ceil((vmax + 2) / 10) * 10)
+    ca_lim = None
+    if SHARE_CA_Y_AXIS:
+        _, ca_max = trace_limits(traces1, traces3, "Ca")
+        ca_lim = (0, np.ceil(1.04 * ca_max / 100) * 100)
+
+    fig = plt.figure(figsize=FIG_SIZE, facecolor="white")
+    # Three data columns. Separate colorbar axes keep the bar close to D/G,
+    # even though B/C have more generous gaps to fit their Y-axis labels.
+    gs = fig.add_gridspec(
+    nrows=3, ncols=3,
+    width_ratios=[1.38, 1.38, 1.22],
+    height_ratios=[1.08, 1.27, 1.27],
+    left=0.120,
+    right=0.910,
+    bottom=0.083,
+    top=0.952,
+    wspace=0.48,
+    hspace=0.43,
+)
+
+    ax_a = fig.add_subplot(gs[0, :])
+    ax_b, ax_c, ax_d = (fig.add_subplot(gs[1, j]) for j in range(3))
+    ax_e, ax_f, ax_g = (fig.add_subplot(gs[2, j]) for j in range(3))
+
+    # A: Input heatmap (same parameters for the two pacing frequencies)
+    scaling_values = scales.to_numpy(dtype=float)
+
+    scaling_norm = TwoSlopeNorm(
+        vmin=float(scaling_values.min()),
+        vcenter=1.0,
+        vmax=float(scaling_values.max())
+    )
+
+    im_in = ax_a.imshow(
+        scaling_values,
+        cmap="RdBu_r",
+        norm=scaling_norm,
+        interpolation="nearest",
+        origin="upper",
+        aspect="auto",
+        rasterized=True
+    )
+    
+    panel_header(ax_a, "A", "Input parameter scaling factors")
+    style_axis_label(ax_a, "Virtual cells", "y", pad=2)
+    style_axis_label(ax_a, "Parameters", "x", pad=-3)
+    ax_a.set_yticks([])
+    ax_a.set_xticks(np.arange(scales.shape[1]))
+    ax_a.set_xticklabels(scales.columns, rotation=55, ha="right",
+                         rotation_mode="anchor", fontsize=INPUT_PARAMETER_SIZE,
+                         fontweight="normal")
+    ax_a.tick_params(axis="x", length=0, pad=2)
+
+    # B/C: 1 Hz overlays; E/F: 3 Hz overlays
+    plot_overlay(ax_b, traces1, "Vm", 1, colors, vm_ylim)
+    plot_overlay(ax_c, traces1, "Ca", 1, colors, ca_lim)
+    plot_overlay(ax_e, traces3, "Vm", 3, colors, vm_ylim)
+    plot_overlay(ax_f, traces3, "Ca", 3, colors, ca_lim)
+
+    for ax, letter, title in (
+        (ax_b, "B", "Action potential"),
+        (ax_c, "C", r"Ca$^{2+}$ transient"),
+        (ax_e, "E", "Action potential"),
+        (ax_f, "F", r"Ca$^{2+}$ transient"),
+    ):
+        panel_header(ax, letter, title)
+
+    # D/G: outputs; use concise centered titles to prevent overlap with letters.
+    plot_output_heatmap(ax_d, z1, z_norm)
+    plot_output_heatmap(ax_g, z3, z_norm)
+    panel_header(ax_d, "D", "Outputs")
+    panel_header(ax_g, "G", "Outputs")
+
+    # Bar immediately to the right of A or D/G; leave outer right margin.
+    bar_offset = 0.012  # figure coordinate; smaller -> bars nearer to heatmaps
+    bar_width = 0.010
+    pos_a = ax_a.get_position()
+    pos_d, pos_g = ax_d.get_position(), ax_g.get_position()
+    cax_in = fig.add_axes([pos_a.x1 + bar_offset, pos_a.y0,
+                           bar_width, pos_a.height])
+    cax_out = fig.add_axes([pos_d.x1 + bar_offset, pos_g.y0,
+                            bar_width, pos_d.y1 - pos_g.y0])
+    cb_in = fig.colorbar(im_in, cax=cax_in)
+    style_colorbar(cb_in, "Scaling factor")
+    mapper_out = plt.cm.ScalarMappable(norm=z_norm, cmap="RdBu_r")
+    cb_out = fig.colorbar(mapper_out, cax=cax_out)
+    style_colorbar(cb_out, "Z-score")
+
+    # Distinct left-side frequency indicators, beyond the AP Y-axis titles.
+    for ax, rate in ((ax_b, "1 Hz"), (ax_e, "3 Hz")):
+        bb = ax.get_position()
+        fig.text(bb.x0 - 0.074, 0.5 * (bb.y0 + bb.y1), rate,
+                 ha="center", va="center", rotation=90,
+                 fontsize=9, fontweight="bold")
+
+    filebase = SAVE_DIR / "sensitivity_analysis_combined_7panels"
+    for fmt in ("pdf", "svg", "jpg"):
+        file = filebase.with_suffix("." + fmt)
+        # No bbox_inches='tight': keep the exact 17.6 cm x 28 cm page size.
+        fig.savefig(file, dpi=DPI, facecolor="white")
+        print(f"Saved: {file.resolve()}")
+
+    if SHOW_FIGURE:
+        plt.show()
+    plt.close(fig)
+
+
+if __name__ == "__main__":
+    main()
