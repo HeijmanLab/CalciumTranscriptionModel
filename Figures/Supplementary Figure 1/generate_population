@@ -1,0 +1,98 @@
+import numpy as np
+import pandas as pd
+
+
+# Number of virtual cells / runs
+N_RUNS = 100
+
+# Random seed for reproducibility
+RANDOM_SEED = 12345
+
+# Coefficient of variation (SD / mean)
+CV = 0.30
+
+# BASELINE PARAMETERS
+
+baseline_parameters = {
+
+    "CaMK0": 0.1984,    
+    "Km_CaM": 0.0015,      
+    "alpha_CaMK": 0.01209,      
+    "beta_CaMK": 0.00068,     
+
+    "t": 1.95000000e+00,      
+    "Km": 1.20000000e+01,      
+    "Prod_HDAC4_C": 1.06630299e+01,      
+    "a1": 9.30618625e+01,      
+    "t1": 1.33484504e+00,      
+    "Prod_MEF2": 1.01762445e+01,
+
+    "Prod_1": 2.72594786e+00,      
+    "f_MEF2": 5.91762743e+00,      
+    "yama": 4.57398508e+00,     
+    "i5": 2.40462402e-02,        
+    "i6": 5.67095800e-02,      
+
+    "Prod_A": 1.30099683e+00,      
+    "Prod_B": 1.97467911e+00,      
+    "r1": 2.93318124e-02,      
+    "r2": 6.59837279e-02,  
+
+    "k1": 3.0168e-02,      
+    "k2": 2.53236719e-02,      
+    "kf": 7.12697556e+00,      
+    "k3": 6.92123797e+01, 
+    "k4": 8.23199563e-02
+}
+
+mean_scale = 1.0
+sd_scale = CV
+
+sigma_log = np.sqrt(np.log(1.0 + (sd_scale / mean_scale) ** 2))
+mu_log = (np.log(mean_scale) - 0.5 * sigma_log ** 2)
+
+print("Log-normal distribution settings")
+print("--------------------------------")
+print(f"Target linear-space mean = {mean_scale}")
+print(f"Target linear-space SD   = {sd_scale}")
+print(f"mu_log                   = {mu_log:.6f}")
+print(f"sigma_log                = {sigma_log:.6f}")
+print()
+
+
+rng = np.random.default_rng(RANDOM_SEED)
+
+parameter_names = list(baseline_parameters.keys())
+n_parameters = len(parameter_names)
+
+scaling_factors = rng.lognormal(mean=mu_log, sigma=sigma_log, size=(N_RUNS, n_parameters))
+
+run_names = [f"run_{i+1:03d}" for i in range(N_RUNS)]
+
+scaling_df = pd.DataFrame( scaling_factors, index=run_names, columns=parameter_names)
+
+scaling_df.index.name = "run"
+
+baseline_array = np.array([baseline_parameters[name] for name in parameter_names])
+
+sampled_parameter_values = (scaling_factors * baseline_array)
+
+parameter_df = pd.DataFrame(sampled_parameter_values, index=run_names, columns=parameter_names)
+
+parameter_df.index.name = "run"
+
+scaling_df.to_csv("population_scaling_factors_100runs.csv")
+
+parameter_df.to_csv("population_parameter_values_100runs.csv")
+
+print("Scaling factors:")
+print(scaling_df.round(4))
+print()
+
+print("Actual parameter values:")
+print(parameter_df)
+print()
+
+print("Files saved:")
+print("  population_scaling_factors_100runs.csv")
+print("  population_parameter_values_100runs.csv")
