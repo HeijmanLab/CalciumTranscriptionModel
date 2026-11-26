@@ -1,0 +1,152 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
+from matplotlib.ticker import MultipleLocator
+
+rcParams['font.family'] = 'Arial'
+rcParams['font.size'] = 10
+rcParams['font.weight'] = 'bold'
+
+width_cm = 17.6
+height_cm = 28
+figsize = (width_cm / 2.54, height_cm / 2.54)
+
+
+from pathlib import Path
+script_dir = Path(__file__).resolve().parent
+data_dir = script_dir.parent / "Data" / "Supplementary Figure 5"
+
+df_a = pd.read_csv(data_dir / "DI_1Hz_10s_3Hz_1min.csv")
+df_b = pd.read_csv(data_dir / "APD90_1Hz_10s_3Hz_1min.csv")
+df_c = pd.read_csv(data_dir / "I_Ca_integral_1Hz_10s_3Hz_1min.csv")
+df_d = pd.read_csv(data_dir / "Ca_i_1Hz_10s_3Hz_1min.csv")
+df_e = pd.read_csv(data_dir / "membrane_V_1Hz_10s_3Hz_1min.csv")
+
+
+phase_times = [0, 10000, 40000]
+phase_labels = ['1Hz', '3Hz']
+phase_colors = ['#cccccc', '#999999']
+
+fig, axes = plt.subplots(5, 1, figsize=figsize)
+
+ymax_di = df_a[['diastolic_interval']].max().max()
+ymin_di = df_a[['diastolic_interval']].min().min()
+y_margin_di = (ymax_di - ymin_di) * 0.1
+ymax_di += y_margin_di
+ymin_di -= y_margin_di
+
+ymax_apd = df_b[['apd90_ms']].max().max()
+ymin_apd = df_b[['apd90_ms']].min().min()
+y_margin_apd = (ymax_apd - ymin_apd) * 0.1
+ymax_apd += y_margin_apd
+ymin_apd -= y_margin_apd
+
+ymax_ic = df_c[['I_CaL_integral']].max().max()
+ymin_ic = df_c[['I_CaL_integral']].min().min()
+y_margin_ic = (ymax_ic - ymin_ic) * 0.1
+ymax_ic += y_margin_ic
+ymin_ic -= y_margin_ic
+
+ymax_ca = df_d[['Ca_Concentrations.Ca_inano']].max().max()
+ymin_ca = df_d[['Ca_Concentrations.Ca_inano']].min().min()
+y_margin_ca = (ymax_ca - ymin_ca) * 0.1
+ymax_ca += y_margin_ca
+ymin_ca -= y_margin_ca
+
+ymax_ap = df_e[['membrane.V']].max().max()
+ymin_ap = df_e[['membrane.V']].min().min()
+y_margin_ap = (ymax_ap - ymin_ap) * 0.1
+ymax_ap += y_margin_ap
+ymin_ap -= y_margin_ap
+
+
+def plot_block(ax, x, y_list, colors, ylabel=None, ylim=None):
+    for i in range(2):
+        ax.axvspan(phase_times[i], phase_times[i+1], color=phase_colors[i], alpha=0.4)
+        ax.text((phase_times[i]+phase_times[i+1])/2, 1.005, phase_labels[i],
+                transform=ax.get_xaxis_transform(), ha='center', va='bottom', weight='bold')
+    for y, color in zip(y_list, colors):
+        ax.plot(x, y, color=color, linewidth=1.5)
+    if ylabel:
+        ax.set_ylabel(ylabel, fontweight='bold')
+    if ylim:
+        ax.set_ylim(ylim)
+    ax.set_xlim(0,40000)
+    ax.xaxis.set_major_locator(MultipleLocator(10000))
+
+    ax.tick_params(axis='both', which='major', length=6, width=1.2)
+    ax.tick_params(axis='both', which='minor', length=3, width=0.8)
+    for spine in ax.spines.values():
+        spine.set_linewidth(1)
+
+plot_block(
+    axes[0],
+    df_a['time(ms)'],
+    [df_a['diastolic_interval']],
+    ['#a17db4'],
+    r"Diastolic Interval (ms)",
+    (ymin_di, ymax_di)
+)
+
+plot_block(
+    axes[1],
+    df_b['time(ms)'],
+    [df_b['apd90_ms']],
+    ['#a17db4'],
+    r"$\mathrm{APD}_{90}$ (ms)",
+    (ymin_apd, ymax_apd)
+)
+
+plot_block(
+    axes[2],
+    df_c['time(ms)'],
+    [df_c['I_CaL_integral']],
+    ['#a17db4'], 
+    r"$I_{Ca,L}$ Entry Integral""\n"r"(pA$\cdot$ms/pF)",   
+    (ymin_ic, ymax_ic)
+)
+
+plot_block(
+    axes[3],
+    df_d['time(ms)'],
+    [df_d['Ca_Concentrations.Ca_inano']],
+    ['#a17db4'],
+    r"$[Ca^{2+}]_i$ (nM)",
+    (ymin_ca, ymax_ca)
+)
+
+plot_block(
+    axes[4],
+    df_e['time(ms)'],
+    [df_e['membrane.V']],
+    ['#a17db4'],
+    r"Membrane Potential (mV)",
+    (ymin_ap, ymax_ap)
+)
+
+lines_a = [
+    plt.Line2D([0], [0], color='#a17db4', lw=1.5),
+]
+
+axes[4].set_xlabel("Time (ms)", fontweight='bold')
+
+fig.text(-0.01, 0.91, "A", fontsize=10, fontweight='bold', ha='left', va='top')
+fig.text(-0.01, 0.73, "B", fontsize=10, fontweight='bold', ha='left', va='top')
+fig.text(-0.01, 0.57, "C", fontsize=10, fontweight='bold', ha='left', va='top')
+fig.text(-0.01, 0.40, "D", fontsize=10, fontweight='bold', ha='left', va='top')
+fig.text(-0.01, 0.24, "E", fontsize=10, fontweight='bold', ha='left', va='top')
+
+
+# ---------- 布局 & 保存 ----------
+fig.subplots_adjust(left=0.12, right=0.95, hspace=0.4, wspace=0.3)
+
+script_dir = Path(__file__).resolve().parent
+output_dir = script_dir / "Output" / "Supplementary Figure 1"
+output_dir.mkdir(parents=True, exist_ok=True)
+save_path = output_dir / "figureS1.jpg"
+
+plt.savefig(save_path, dpi=600, format='jpg', bbox_inches='tight')
+plt.show()
+
+    
