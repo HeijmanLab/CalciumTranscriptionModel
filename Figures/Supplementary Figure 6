@@ -42,8 +42,6 @@ plt.rcParams.update({
     "axes.linewidth": 0.9,
 })
 
-
-# ====================== 2. READ AND CHECK DATA ======================
 def load_ca_data(path: Path, suffix: str) -> pd.DataFrame:
     if not path.is_file():
         raise FileNotFoundError(f"CSV file not found: {path}")
@@ -57,8 +55,6 @@ def load_ca_data(path: Path, suffix: str) -> pd.DataFrame:
         raise ValueError(f"NaN/inf values in {path.name}")
     return df
 
-
-# ====================== 3. PLOT FUNCTION =============================
 def plot_block(ax, df: pd.DataFrame, suffix: str, heading: str, y_max: float):
     # Light grey backgrounds and pacing-frequency annotations.
     for i in range(2):
@@ -71,7 +67,6 @@ def plot_block(ax, df: pd.DataFrame, suffix: str, heading: str, y_max: float):
             clip_on=False,
         )
 
-    # Three outputs in the same panel, using consistent colors across panels.
     for name, label, color in SERIES:
         ax.plot(df["time_min"], df[f"{name}_{suffix}"],
                 color=color, lw=1.5, ls="-", label=label, zorder=3)
@@ -80,12 +75,12 @@ def plot_block(ax, df: pd.DataFrame, suffix: str, heading: str, y_max: float):
     ax.set_ylabel("Intracellular Ca$^{2+}$ (nM)",
                   fontsize=9, fontweight="bold", labelpad=8)
     ax.set_xlim(PHASE_TIMES[0], PHASE_TIMES[-1])
-    ax.set_ylim(0, y_max)  # Same y-axis for both panels.
+    ax.set_ylim(0, y_max) 
     ax.xaxis.set_major_locator(MultipleLocator(5))
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.yaxis.set_major_locator(MultipleLocator(200))
     ax.tick_params(axis="both", which="major", length=5, width=1, labelsize=8)
-    # Make X and Y tick labels bold
+
     for label in ax.get_xticklabels() + ax.get_yticklabels():
         label.set_fontweight('bold')
         label.set_fontsize(10)
@@ -98,7 +93,6 @@ def main():
     df_with = load_ca_data(CSV_WITH, "with_transcription")
     df_without = load_ca_data(CSV_WITHOUT, "without_transcription")
 
-    # One common y-axis makes absolute values directly comparable.
     max_value = max(
         float(df_with[[f"{key}_with_transcription" for key, _, _ in SERIES]].max().max()),
         float(df_without[[f"{key}_without_transcription" for key, _, _ in SERIES]].max().max()),
@@ -109,11 +103,9 @@ def main():
     plot_block(ax_a, df_with, "with_transcription", "With transcription", y_max)
     plot_block(ax_b, df_without, "without_transcription", "Without transcription", y_max)
 
-    # Show time labels on both panels. Bottom gets one global x-axis title.
     ax_a.tick_params(axis="x", which="both", labelbottom=True)
     ax_b.set_xlabel("Time (h)", fontsize=10, fontweight="bold", labelpad=7)
 
-    # Single legend: labels refer to the three calcium outputs, not conditions.
     handles, labels = ax_a.get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", ncol=3,
                bbox_to_anchor=(0.57, 0.995), frameon=False,
@@ -122,7 +114,6 @@ def main():
     fig.subplots_adjust(left=0.1, right=0.95, top=0.81,
                         bottom=0.13, hspace=0.62)
 
-    # Panel letters: fixed offset in points, independent of panel width.
     for ax, letter in ((ax_a, "A"), (ax_b, "B")):
         trans = ax.transAxes + ScaledTranslation(-23 / 72, 23 / 72, fig.dpi_scale_trans)
         ax.text(0, 1, letter, transform=trans,
@@ -132,7 +123,7 @@ def main():
     base = SAVE_DIR / "Ca_transient_with_without_transcription_comparison"
     for extension in ("png", "pdf", "jpg"):
         target = base.with_suffix("." + extension)
-        fig.savefig(target, dpi=DPI, facecolor="white")  # Exact 17.6 x 14 cm page.
+        fig.savefig(target, dpi=DPI, facecolor="white") 
         print(f"Saved: {target}")
     if SHOW_FIGURE:
         plt.show()
