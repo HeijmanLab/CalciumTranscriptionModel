@@ -1,0 +1,279 @@
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.transforms import ScaledTranslation
+
+
+script_dir = Path(__file__).resolve().parent
+ROOT_DIR = script_dir.parent / "Data" / "Supplements Figure 2"
+SAVE_DIR = script_dir / "Output" / "Supplements Figure 2"
+SAVE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+DPI = 600
+WIDTH_CM = 17.6
+HEIGHT_CM = 22.0
+FIGSIZE = (WIDTH_CM / 2.54, HEIGHT_CM / 2.54)
+SHOW_FIGURE = True
+
+OUTPUT_COLUMNS = ("relative_active_LTCC", "CaTamp", "APD90_ms")
+OUTPUT_LABELS = ("Relative active LTCC", r"$\Delta[\mathrm{Ca}^{2+}]_i$", r"$\mathrm{APD}_{90}$")
+OUTPUT_COLORS = {
+    "relative_active_LTCC": "#3569A8",
+    "CaTamp": "#DA8754",
+    "APD90_ms": "#329B90",
+    "LTCC_3Hz_over_1Hz": "#3569A8",  # same as relative active LTCC
+}
+
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
+    "font.size": 8,
+    "axes.labelsize": 9,
+    "axes.titlesize": 10,
+    "xtick.labelsize": 7,
+    "ytick.labelsize": 7,
+    "axes.linewidth": 0.75,
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
+    "svg.fonttype": "none",
+})
+
+# ============================================================
+# FILE HELPERS
+# ============================================================
+def find_first_file(*candidates: Path) -> Path:
+    for path in candidates:
+        if path.is_file():
+            return path
+    raise FileNotFoundError(
+        "Cannot find a required CSV. Tried:\n" +
+        "\n".join(f"  - {p}" for p in candidates)
+    )
+
+
+def locate_files():
+    scaling = find_first_file(
+        ROOT_DIR / "population_scaling_factors_100runs.csv",
+        ROOT_DIR / "population_scaling_factors_100runs(4).csv",
+    )
+    out1 = find_first_file(
+        ROOT_DIR / "sensitivity_outputs_1Hz.csv",
+        ROOT_DIR / "sensitivity_outputs_1Hz(2).csv",
+    )
+    out3 = find_first_file(
+        ROOT_DIR / "sensitivity_outputs_3Hz.csv",
+        ROOT_DIR / "sensitivity_outputs_3Hz(2).csv",
+    )
+    return scaling, out1, out3
+
+
+def read_indexed_csv(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    if "run" not in df.columns:
+        raise ValueError(f"Missing 'run' column in {path}")
+    runs = df.pop("run").astype(str).str.strip()
+    extracted = runs.str.extract(r"^(?:run_)?0*(\d+)(?:\.0)?$")[0]
+    if extracted.isna().any():
+        bad = runs[extracted.isna()].tolist()[:5]
+        raise ValueError(f"Invalid run IDs in {path}: {bad}")
+    df.index = pd.Index(extracted.astype(int).to_numpy(), name="run")
+    if df.index.has_duplicates:
+        raise ValueError(f"Duplicate run IDs in {path}")
+    df = df.sort_index()
+    df = df.apply(pd.to_numeric, errors="raise")
+    if not np.isfinite(df.to_numpy(dtype=float)).all():
+        raise ValueError(f"NaN/inf values in {path}")
+    return df
+
+
+# ============================================================
+# ANALYSIS HELPERS
+# ============================================================
+def zscore(df: pd.DataFrame) -> pd.DataFrame:
+    sd = df.std(axis=0, ddof=1)
+    if (sd <= 0).any() or sd.isna().any():
+        bad = sd[(sd <= 0) | sd.isna()].index.tolist()
+        raise ValueError(f"Cannot standardize constant/invalid columns: {bad}")
+    return (df - df.mean(axis=0)) / sd
+
+
+def compute_coefficients(inputs: pd.DataFrame, outputs: pd.DataFrame) -> pd.DataFrame:
+    x = zscore(inputs).to_numpy(dtype=float)
+    if np.linalg.matrix_rank(x) != x.shape[1]:
+        raise ValueError("Input matrix is rank deficient")
+
+    outputs_std = zscore(outputs)
+    coef = pd.DataFrame(index=inputs.columns, columns=outputs.columns, dtype=float)
+
+    for column in outputs.columns:
+        y = outputs_std[column].to_numpy(dtype=float)
+        beta, *_ = np.linalg.lstsq(x, y, rcond=None)
+        coef[column] = beta
+    return coef
+
+
+def compute_ratio_coefficients(inputs: pd.DataFrame, outputs1: pd.DataFrame, outputs3: pd.DataFrame) -> pd.Series:
+    ratio = outputs3["Active_LTCC"] / outputs1["Active_LTCC"]
+    x = zscore(inputs).to_numpy(dtype=float)
+    y = ((ratio - ratio.mean()) / ratio.std(ddof=1)).to_numpy(dtype=float)
+    beta, *_ = np.linalg.lstsq(x, y, rcond=None)
+    return pd.Series(beta, index=inputs.columns, name="LTCC_3Hz_over_1Hz")
+
+
+# ============================================================
+# PLOTTING HELPERS
+# ============================================================
+def style_axis(ax):
+    ax.axhline(0, color="#26303B", lw=0.9, zorder=3)
+    ax.yaxis.grid(True, color="#DCE0E4", lw=0.55, zorder=0)
+    ax.tick_params(axis="both", which="both", length=3, width=0.7, pad=3)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.set_ylabel("Standardized coefficient", fontsize=9, fontweight="bold", labelpad=7)
+
+
+def plot_multioutput_panel(ax, coef: pd.DataFrame, title: str, y_abs_max: float):
+    x = np.arange(coef.shape[0], dtype=float)
+    width = 0.25
+    for k, column in enumerate(OUTPUT_COLUMNS):
+        ax.bar(
+            x + (k - 1) * width,
+            coef[column].values,
+            width=width,
+            color=OUTPUT_COLORS[column],
+            edgecolor="none",
+            zorder=2,
+            label=OUTPUT_LABELS[k],
+        )
+    ax.set_xlim(-0.65, len(x) - 0.35)
+    ax.set_ylim(-y_abs_max, y_abs_max)
+    ax.set_title(title, fontweight="bold", fontsize=10, pad=8)
+    style_axis(ax)
+
+
+def plot_singleoutput_panel(ax, coef: pd.Series, title: str, y_abs_max: float):
+    x = np.arange(coef.shape[0], dtype=float)
+    ax.bar(
+        x,
+        coef.values,
+        width=0.72,
+        color=OUTPUT_COLORS["LTCC_3Hz_over_1Hz"],
+        edgecolor="none",
+        zorder=2,
+    )
+    ax.set_xlim(-0.65, len(x) - 0.35)
+    ax.set_ylim(-y_abs_max, y_abs_max)
+    ax.set_title(title, fontweight="bold", fontsize=10, pad=8)
+    style_axis(ax)
+
+
+def add_panel_letter(ax, letter: str, fig, x_pt=-22, y_pt=5):
+    trans = ax.transAxes + ScaledTranslation(x_pt / 72, y_pt / 72, fig.dpi_scale_trans)
+    ax.text(0, 1, letter, transform=trans,
+            ha="left", va="bottom", fontsize=11, fontweight="bold")
+
+
+# ============================================================
+# MAIN
+# ============================================================
+def main():
+    scaling_path, out1_path, out3_path = locate_files()
+    print("Scaling factors:", scaling_path)
+    print("1 Hz outputs   :", out1_path)
+    print("3 Hz outputs   :", out3_path)
+
+    inputs = read_indexed_csv(scaling_path)
+    out1 = read_indexed_csv(out1_path)
+    out3 = read_indexed_csv(out3_path)
+
+    required1 = set(OUTPUT_COLUMNS) | {"Active_LTCC"}
+    required3 = set(OUTPUT_COLUMNS) | {"Active_LTCC"}
+    missing1 = required1 - set(out1.columns)
+    missing3 = required3 - set(out3.columns)
+    if missing1:
+        raise ValueError(f"1 Hz output CSV missing columns: {sorted(missing1)}")
+    if missing3:
+        raise ValueError(f"3 Hz output CSV missing columns: {sorted(missing3)}")
+
+    common = inputs.index.intersection(out1.index).intersection(out3.index)
+    if len(common) == 0:
+        raise ValueError("No matched run IDs across input / 1 Hz / 3 Hz files")
+
+    inputs = inputs.loc[common].sort_index()
+    out1 = out1.loc[common].sort_index()
+    out3 = out3.loc[common].sort_index()
+
+    coef1 = compute_coefficients(inputs, out1.loc[:, list(OUTPUT_COLUMNS)])
+    coef3 = compute_coefficients(inputs, out3.loc[:, list(OUTPUT_COLUMNS)])
+    ratio_coef = compute_ratio_coefficients(inputs, out1, out3)
+
+    # Sort everything by 1 Hz maximum absolute coefficient.
+    order = coef1.abs().max(axis=1).sort_values(ascending=False, kind="stable").index
+    coef1 = coef1.loc[order]
+    coef3 = coef3.loc[order]
+    ratio_coef = ratio_coef.loc[order]
+
+    y_peak = max(
+        float(np.abs(coef1.to_numpy()).max()),
+        float(np.abs(coef3.to_numpy()).max()),
+        float(np.abs(ratio_coef.to_numpy()).max()),
+    )
+    y_abs_max = np.ceil((y_peak + 0.025) * 10) / 10
+
+    fig = plt.figure(figsize=FIGSIZE, facecolor="white")
+    gs = fig.add_gridspec(
+        nrows=3, ncols=1,
+        height_ratios=[1.0, 1.0, 1.05],
+        left=0.12, right=0.975, top=0.90, bottom=0.13,
+        hspace=0.7,
+    )
+
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
+    ax3 = fig.add_subplot(gs[2, 0], sharex=ax1)
+
+    plot_multioutput_panel(ax1, coef1, "1 Hz", y_abs_max)
+    plot_multioutput_panel(ax2, coef3, "3 Hz", y_abs_max)
+    plot_singleoutput_panel(ax3, ratio_coef, r"Relative Active LTCC Ratio (3 Hz / 1 Hz)", y_abs_max)
+
+    x = np.arange(len(order))
+    labels = list(order)
+
+    # Keep parameter labels on all displayed panels.
+    for ax in (ax1, ax2, ax3):
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=60, ha="right", rotation_mode="anchor",
+                           fontsize=7, fontweight="normal")
+        ax.tick_params(axis="x", labelbottom=True, pad=2)
+
+    ax3.set_xlabel("Parameters", fontsize=9, fontweight="bold", labelpad=8)
+
+    handles, labels = ax1.get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False,
+               bbox_to_anchor=(0.50, 0.985), fontsize=8,
+               handlelength=1.4, columnspacing=1.8)
+
+    # Panel letters: A covers the two top subplots, B marks the bottom subplot.
+    add_panel_letter(ax1, "A", fig, x_pt=-30, y_pt=7)
+    add_panel_letter(ax3, "B", fig, x_pt=-30, y_pt=7)
+
+    SAVE_DIR.mkdir(parents=True, exist_ok=True)
+    base = SAVE_DIR / "combined_coefficient_panelA_panelB"
+
+    coef1.to_csv(SAVE_DIR / "panelA_standardized_coefficients_1Hz.csv")
+    coef3.to_csv(SAVE_DIR / "panelA_standardized_coefficients_3Hz.csv")
+    ratio_coef.to_csv(SAVE_DIR / "panelB_standardized_coefficients_LTCC_3Hz_over_1Hz.csv", header=True)
+
+    for ext in ("png", "pdf", "svg", "jpg"):
+        out = base.with_suffix(f".{ext}")
+        fig.savefig(out, dpi=600, facecolor="white")
+
+    if SHOW_FIGURE:
+        plt.show()
+    plt.close(fig)
+
+
+if __name__ == "__main__":
+    main()
