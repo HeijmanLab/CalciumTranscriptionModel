@@ -1,0 +1,2009 @@
+[[script]]
+import myokit
+import numpy as np
+import pandas as pd
+
+MMT_FILE = 'sensitivity analysis 24hr 1Hz 100run.mmt'
+POPULATION_FILE = 'population_parameter_values_100runs.csv'
+
+# First use:
+#     TEST_MODE = True
+# This runs only run_001 with SPEEDUP = 100 and writes files with
+# a quick_test_ prefix. These files are NOT used by the formal run.
+#
+# After the workflow test succeeds, change ONLY this line to:
+#     TEST_MODE = False
+# The script will then use SPEEDUP = 1 and run the full 100-cell
+# population, with automatic resume from completed formal runs.
+
+TEST_MODE = False
+
+TEST_RUNS = 100
+
+TEST_SPEEDUP = 100
+
+if TEST_MODE:
+
+    SPEEDUP = TEST_SPEEDUP
+
+    RUN_LIMIT = TEST_RUNS
+
+    SUMMARY_FILE = 'quick_test_sensitivity_outputs.csv'
+
+    FILE_PREFIX = 'quick_test_'
+
+else:
+
+    SPEEDUP = 1
+
+    RUN_LIMIT = None
+
+    SUMMARY_FILE = 'sensitivity_outputs.csv'
+
+    FILE_PREFIX = ''
+
+CONVERSION_FACTOR = 1 / 3600000
+
+# Dense logging interval used for the recorded beat/window
+
+LOG_INTERVAL = 0.1
+
+# Existing adaptive-sampling design
+
+BEATS_TO_LOG = 5
+
+SENS_FREQ = 1
+
+SENS_HOURS = 24
+
+PREPACE_FREQ = 0.5
+
+PREPACE_BCL = 2000
+
+PREPACE_HOURS = 12
+
+CALCIUM_VAR = 'Ca_Concentrations.Ca_inano'
+
+ACTIVE_LTCC_VAR = 'transcription.Act'
+
+
+# ============================================================
+
+# Load model
+
+# ============================================================
+
+m, p, x = myokit.load(MMT_FILE)
+
+
+# ============================================================
+
+# Load population parameter table
+
+# ============================================================
+
+population_table = pd.read_csv(
+
+    POPULATION_FILE,
+
+    index_col=0
+
+)
+
+print("\nPopulation table loaded successfully.")
+
+print("Number of available runs:", len(population_table))
+
+print("Number of sampled parameters:", len(population_table.columns))
+
+
+# ============================================================
+
+# Map CSV names to Myokit variable names
+
+# ============================================================
+
+parameter_map = {
+
+    # CaMKII
+
+    'CaMK0': 'parameters.CaMK0',
+
+    'Km_CaM': 'parameters.Km_CaM',
+
+    'alpha_CaMK': 'parameters.alpha_CaMK',
+
+    'beta_CaMK': 'parameters.beta_CaMK',
+
+    # HDAC4 / MEF2
+
+    't': 'transcription.t',
+
+    'Km': 'transcription.Km',
+
+    'Prod_HDAC4_C': 'transcription.Prod_HDAC4_C',
+
+    'a1': 'transcription.a1',
+
+    't1': 'transcription.t1',
+
+    'Prod_MEF2': 'transcription.Prod_MEF2',
+
+    # miR-1
+
+    'Prod_1': 'transcription.Prod_1',
+
+    'f_MEF2': 'transcription.f_MEF2',
+
+    'yama': 'transcription.yama',
+
+    'i5': 'transcription.i5',
+
+    'i6': 'transcription.i6',
+
+    # LTCC mRNA / protein
+
+    'Prod_A': 'transcription.Prod_A',
+
+    'Prod_B': 'transcription.Prod_B',
+
+    'r1': 'transcription.r1',
+
+    'r2': 'transcription.r2',
+
+    'k1': 'transcription.k1',
+
+    'k2': 'transcription.k2',
+
+    # LTCC assembly / trafficking
+
+    'kf': 'transcription.kf',
+
+    'k3': 'transcription.k3',
+
+    'k4': 'transcription.k4',
+
+}
+
+
+# ============================================================
+
+# Startup checks
+
+# ============================================================
+
+for csv_name, myokit_name in parameter_map.items():
+
+    if csv_name not in population_table.columns:
+
+        raise ValueError(
+
+            f"Missing CSV parameter: {csv_name}"
+
+        )
+
+    try:
+
+        m.get(myokit_name)
+
+    except KeyError:
+
+        raise ValueError(
+
+            f"Myokit variable not found: {myokit_name}"
+
+        )
+
+try:
+
+    m.get(CALCIUM_VAR)
+
+except KeyError:
+
+    raise ValueError(
+
+        f"Calcium variable not found: {CALCIUM_VAR}"
+
+    )
+
+try:
+
+    m.get(ACTIVE_LTCC_VAR)
+
+except KeyError:
+
+    raise ValueError(
+
+        f"Active-LTCC variable not found: {ACTIVE_LTCC_VAR}"
+
+    )
+
+# Prefer Myokit's standard membrane-potential label.
+
+v_var = m.label('membrane_potential')
+
+if v_var is not None:
+
+    VOLTAGE_VAR = v_var.qname()
+
+else:
+
+    VOLTAGE_VAR = 'membrane.V'
+
+    try:
+
+        m.get(VOLTAGE_VAR)
+
+    except KeyError:
+
+        raise ValueError(
+
+            "Could not identify membrane potential. "
+
+            "No variable labelled 'membrane_potential' and "
+
+            "'membrane.V' was not found."
+
+        )
+
+print("Population parameter mapping check passed.")
+
+print("Voltage variable:", VOLTAGE_VAR)
+
+
+# ============================================================
+
+# Helper functions
+
+# ============================================================
+
+def run_local(sim, duration, log=None, dt=None):
+
+    """
+
+    Run one simulation chunk with local time reset.
+
+    sim.set_time(0) resets the simulation clock but not the
+
+    model state. This preserves the existing chunked-run logic.
+
+    """
+
+    duration = float(duration)
+
+    if duration <= 1e-9:
+
+        return None
+
+    sim.set_time(0)
+
+    if not log:
+
+        return sim.run(duration, log=[])
+
+    if dt is None:
+
+        return sim.run(duration, log=log)
+
+    # Avoid logging exactly at t=0 or exactly at final time.
+
+    log_times = np.arange(
+
+        dt,
+
+        duration - 0.5 * dt,
+
+        dt
+
+    )
+
+    if len(log_times) < 3:
+
+        return sim.run(duration, log=[])
+
+    return sim.run(
+
+        duration,
+
+        log=log,
+
+        log_times=log_times
+
+    )
+
+
+def make_protocol(freq):
+
+    bcl = 1000 / freq
+
+    protocol = myokit.Protocol()
+
+    protocol.schedule(
+
+        1,
+
+        0,
+
+        5,
+
+        bcl,
+
+        0
+
+    )
+
+    return protocol
+
+
+def extract_ca_transient_amplitude(t, ca, bcl):
+
+    """
+
+    Extract systolic Ca, diastolic Ca, and Ca transient amplitude
+
+    from a local calcium trace.
+
+    """
+
+    t = np.asarray(t)
+
+    ca = np.asarray(ca)
+
+    ca_peak_times = []
+
+    systolic_values = []
+
+    diastolic_values = []
+
+    amplitude_values = []
+
+    if len(t) < 3:
+
+        return pd.DataFrame({
+
+            'time': [],
+
+            'systolic_Ca': [],
+
+            'diastolic_Ca': [],
+
+            'CaT_amplitude': []
+
+        })
+
+    beat_starts = np.arange(
+
+        0,
+
+        t[-1],
+
+        bcl
+
+    )
+
+    for beat_start in beat_starts:
+
+        beat_end = beat_start + bcl
+
+        idx = np.where(
+
+            (t >= beat_start)
+
+            & (t < beat_end)
+
+        )[0]
+
+        if len(idx) < 3:
+
+            continue
+
+        tt = t[idx]
+
+        cc = ca[idx]
+
+        peak_idx = np.argmax(cc)
+
+        ca_sys = np.max(cc)
+
+        ca_dia = np.min(cc)
+
+        ca_amp = ca_sys - ca_dia
+
+        ca_peak_times.append(
+
+            tt[peak_idx]
+
+        )
+
+        systolic_values.append(
+
+            ca_sys
+
+        )
+
+        diastolic_values.append(
+
+            ca_dia
+
+        )
+
+        amplitude_values.append(
+
+            ca_amp
+
+        )
+
+    return pd.DataFrame({
+
+        'time': ca_peak_times,
+
+        'systolic_Ca': systolic_values,
+
+        'diastolic_Ca': diastolic_values,
+
+        'CaT_amplitude': amplitude_values
+
+    })
+
+
+def calculate_apd90(t, v):
+
+    """
+
+    Calculate APD90 from one complete recorded beat.
+
+    APD90 is measured from the maximum-dV/dt upstroke time
+
+    to the downward crossing of the 90%-repolarization level.
+
+    """
+
+    t = np.asarray(t)
+
+    v = np.asarray(v)
+
+    if len(t) < 10:
+
+        return np.nan
+
+    peak_idx = int(np.argmax(v))
+
+    if peak_idx < 2:
+
+        return np.nan
+
+    v_peak = float(v[peak_idx])
+
+    v_rest = float(np.min(v))
+
+    # 90% repolarization = 10% of AP amplitude above resting V.
+
+    v90 = v_rest + 0.1 * (
+
+        v_peak - v_rest
+
+    )
+
+    dvdt = np.gradient(
+
+        v,
+
+        t
+
+    )
+
+    upstroke_idx = int(
+
+        np.argmax(
+
+            dvdt[:peak_idx + 1]
+
+        )
+
+    )
+
+    t_activation = float(
+
+        t[upstroke_idx]
+
+    )
+
+    # Find the downward V90 crossing after the AP peak.
+
+    for i in range(
+
+        peak_idx,
+
+        len(v) - 1
+
+    ):
+
+        if (
+
+            v[i] >= v90
+
+            and v[i + 1] < v90
+
+        ):
+
+            fraction = (
+
+                (v90 - v[i])
+
+                / (v[i + 1] - v[i])
+
+            )
+
+            t_repol = (
+
+                t[i]
+
+                + fraction
+
+                * (t[i + 1] - t[i])
+
+            )
+
+            return float(
+
+                t_repol - t_activation
+
+            )
+
+    return np.nan
+
+
+# ============================================================
+
+# Baseline model constants
+
+# ============================================================
+
+#
+
+# These are applied before the sampled population values.
+
+# The 24 sampled parameters then override their corresponding
+
+# baseline values for EACH virtual cell.
+
+#
+
+# I_Ca.ref_transcription_Act is NOT placed here because it will
+
+# be calculated separately for each virtual cell after that
+
+# cell's own 0.5-Hz pre-pacing.
+
+# ============================================================
+
+baseline_constants = {
+
+    'CaMK.fixed_Active': -1,
+
+    'transcription.Prod_A': 1.30099683e+00,
+
+    'transcription.Prod_B': 1.97467911e+00,
+
+    'transcription.r1': 2.93318124e-02,
+
+    'transcription.r2': 6.59837279e-02,
+
+    'transcription.k1': 2 * 1.50837531e-02,
+
+    'transcription.k2': 2.53236719e-02,
+
+    'transcription.d4': 3.47572467e-01,
+
+    'transcription.kf': 7.12697556e+00,
+
+    'transcription.kb': 3.41741648e-02,
+
+    'transcription.d2': 1.11897819e-01,
+
+    'transcription.d3': 3.59272102e-06,
+
+    'transcription.k4': 8.23199563e-02,
+
+    'transcription.k5': 4.59957045e-01,
+
+    'transcription.d1': 2.22420433e-01,
+
+    'transcription.k3': 6.92123797e+01,
+
+    'transcription.ra': 1.20201575e-04,
+
+    'transcription.rb': 1.25117858e-04,
+
+    'transcription.r3': 3.43147043e-02,
+
+    'transcription.r4': 6.02359509e-02,
+
+    'transcription.alfa': 1.40000000e+00,
+
+    'transcription.Prod_1': 2.72594786e+00,
+
+    'transcription.d7': 9.14349631e-02,
+
+    'transcription.i5': 2.40462402e-02,
+
+    'transcription.f_MEF2': 5.91762743e+00,
+
+    'transcription.b1': 4.91880317e-01,
+
+    'transcription.yama': 4.57398508e+00,
+
+    'transcription.Prod_MEF2': 1.01762445e+01,
+
+    'transcription.a1': 9.30618625e+01,
+
+    'transcription.a2': 8.64036441e-02,
+
+    'transcription.c1': 3.57338094e+00,
+
+    'transcription.d8': 5.35967422e-01,
+
+    'transcription.Prod_HDAC4_C': 1.06630299e+01,
+
+    'transcription.d9': 1.19026831e-01,
+
+    'transcription.t': 1.95000000e+00,
+
+    'transcription.t1': 1.33484504e+00,
+
+    'transcription.Km': 1.20000000e+01,
+
+    'transcription.h': 2.00000000e+00,
+
+    'transcription.i6': 5.67095800e-02,
+
+    'transcription.b6': 7.16121452e-01,
+
+    'transcription.kc': 3.45606521e-01,
+
+    # Keep the original model timescale.
+
+    # SPEEDUP only shortens the test duration; scientific runs use SPEEDUP = 1.
+
+    'transcription.conversion_factor': CONVERSION_FACTOR
+
+}
+
+
+# ============================================================
+
+# Apply baseline + population-specific constants
+
+# ============================================================
+
+def apply_population_constants(
+
+    sim,
+
+    population_row,
+
+    ref_ICaL_Act=None
+
+):
+
+    """
+
+    Apply baseline constants first, then override the selected
+
+    24 parameters using one row of the population table.
+
+    If ref_ICaL_Act is supplied, it is also applied. This allows
+
+    each virtual cell to use the reference Active-LTCC value
+
+    obtained after its own 0.5-Hz pre-pacing.
+
+    """
+
+    # Baseline constants
+
+    for k, v in baseline_constants.items():
+
+        sim.set_constant(
+
+            k,
+
+            v
+
+        )
+
+    # The sampled 24 parameters override baseline values
+
+    for (
+
+        csv_name,
+
+        myokit_name
+
+    ) in parameter_map.items():
+
+        value = float(
+
+            population_row[
+
+                csv_name
+
+            ]
+
+        )
+
+        sim.set_constant(
+
+            myokit_name,
+
+            value
+
+        )
+
+    # Run-specific reference after pre-pacing
+
+    if ref_ICaL_Act is not None:
+
+        sim.set_constant(
+
+            'I_Ca.ref_transcription_Act',
+
+            float(ref_ICaL_Act)
+
+        )
+
+
+# ============================================================
+
+# Pre-pace ONE population member at 0.5 Hz
+
+# ============================================================
+
+def prepace_population_member(
+
+    run_name,
+
+    population_row
+
+):
+
+    """
+
+    Each virtual cell is pre-paced separately.
+
+    The same sampled 24-parameter set is therefore present during:
+
+        12 h at 0.5 Hz pre-pacing
+
+        24 h at 1 Hz adaptation
+
+        final recorded 1-Hz beat
+
+    Returns:
+
+        pre_state:
+
+            final state after this cell's own pre-pacing
+
+        ref_ICaL_Act:
+
+            this cell's Active-LTCC reference measured after
+
+            its own pre-pacing
+
+    """
+
+    print(
+
+        f"\nPre-pacing {run_name} at "
+
+        f"{PREPACE_FREQ} Hz for "
+
+        f"{PREPACE_HOURS} biological h"
+
+    )
+
+    p_pre = make_protocol(
+
+        PREPACE_FREQ
+
+    )
+
+    s_pre = myokit.Simulation(
+
+        m,
+
+        p_pre
+
+    )
+
+    s_pre.set_tolerance(
+
+        1E-8
+
+    )
+
+    # IMPORTANT:
+
+    # Apply this virtual cell's sampled parameters BEFORE pre-pacing.
+
+    apply_population_constants(
+
+        sim=s_pre,
+
+        population_row=population_row,
+
+        ref_ICaL_Act=None
+
+    )
+
+    prepace_duration = (
+
+        PREPACE_HOURS
+
+        * 3600000
+
+        / SPEEDUP
+
+    )
+
+    print(
+
+        f"Pre-pacing model duration "
+
+        f"= {prepace_duration} ms"
+
+    )
+
+    s_pre.pre(
+
+        prepace_duration
+
+    )
+
+    # Save this virtual cell's own pre-paced state
+
+    pre_state = list(
+
+        s_pre.state()
+
+    )
+
+    # Measure this virtual cell's own reference Active LTCC
+
+    # immediately after pre-pacing.
+
+    d_ref = run_local(
+
+        s_pre,
+
+        duration=PREPACE_BCL,
+
+        log=[ACTIVE_LTCC_VAR],
+
+        dt=1
+
+    )
+
+    ref_ICaL_Act = float(
+
+        d_ref[
+
+            ACTIVE_LTCC_VAR
+
+        ][-1]
+
+    )
+
+    print(
+
+        f"{run_name} reference ICaL_Act "
+
+        f"at 0.5 Hz = {ref_ICaL_Act}"
+
+    )
+
+    return (
+
+        pre_state,
+
+        ref_ICaL_Act
+
+    )
+
+
+# ============================================================
+
+# Create one population-member simulation at the target rate
+
+# ============================================================
+
+def make_sim(
+
+    freq,
+
+    state,
+
+    population_row,
+
+    ref_ICaL_Act
+
+):
+
+    """
+
+    Create the target-frequency simulation for one virtual cell.
+
+    The same sampled parameter set used during pre-pacing is
+
+    applied again here, together with that cell's own reference
+
+    Active-LTCC value.
+
+    """
+
+    sim = myokit.Simulation(
+
+        m,
+
+        make_protocol(freq)
+
+    )
+
+    sim.set_tolerance(
+
+        1E-8
+
+    )
+
+    apply_population_constants(
+
+        sim=sim,
+
+        population_row=population_row,
+
+        ref_ICaL_Act=ref_ICaL_Act
+
+    )
+
+    sim.set_state(
+
+        state
+
+    )
+
+    return sim
+
+
+# ============================================================
+
+# Existing adaptive sampling design for the 24-h 1-Hz phase
+
+# ============================================================
+
+def get_segments_for_phase(hours):
+
+    """
+
+    Preserve the original phase-1 sampling design:
+
+        first 1 h:
+
+            sample every 5 s
+
+        remaining time:
+
+            sample every 10 min
+
+    Each sampling window logs BEATS_TO_LOG complete beats.
+
+    """
+
+    return [
+
+        (
+
+            'first_1h_dense',
+
+            min(hours, 1),
+
+            5
+
+        ),
+
+        (
+
+            'remaining_sparse',
+
+            max(hours - 1, 0),
+
+            600
+
+        )
+
+    ]
+
+
+def run_phase(
+
+    sim,
+
+    freq,
+
+    hours,
+
+    phase_name
+
+):
+
+    """
+
+    Run the 24-h 1-Hz phase with the existing adaptive sampling.
+
+    Only Ca-transient summary values are retained from each
+
+    sampling window, so the 24-h phase does not create a huge file.
+
+    """
+
+    bcl = 1000 / freq
+
+    segments = get_segments_for_phase(
+
+        hours
+
+    )
+
+    rows = []
+
+    sample_index = 0
+
+    phase_elapsed_beats = 0
+
+    print(
+
+        f"\nStarting {phase_name}"
+
+    )
+
+    print(
+
+        f"BCL = {bcl} ms"
+
+    )
+
+    for (
+
+        segment_name,
+
+        segment_hours,
+
+        sample_every_sec
+
+    ) in segments:
+
+        if segment_hours <= 0:
+
+            continue
+
+        segment_ms = (
+
+            segment_hours
+
+            * 3600000
+
+            / SPEEDUP
+
+        )
+
+        segment_beats = int(
+
+            round(
+
+                segment_ms / bcl
+
+            )
+
+        )
+
+        interval_ms = (
+
+            sample_every_sec
+
+            * 1000
+
+            / SPEEDUP
+
+        )
+
+        interval_beats = int(
+
+            round(
+
+                interval_ms / bcl
+
+            )
+
+        )
+
+        interval_beats = max(
+
+            BEATS_TO_LOG,
+
+            interval_beats
+
+        )
+
+        beats_done = 0
+
+        print(
+
+            f"  Segment: {segment_name}"
+
+        )
+
+        print(
+
+            f"  Segment hours: "
+
+            f"{segment_hours:.6f}"
+
+        )
+
+        print(
+
+            f"  Segment beats: "
+
+            f"{segment_beats}"
+
+        )
+
+        print(
+
+            f"  Sample interval beats: "
+
+            f"{interval_beats}"
+
+        )
+
+        while (
+
+            beats_done
+
+            + interval_beats
+
+            <= segment_beats
+
+        ):
+
+            quiet_beats = (
+
+                interval_beats
+
+                - BEATS_TO_LOG
+
+            )
+
+            # State evolves without saving raw trace.
+
+            if quiet_beats > 0:
+
+                run_local(
+
+                    sim,
+
+                    duration=(
+
+                        quiet_beats
+
+                        * bcl
+
+                    ),
+
+                    log=[]
+
+                )
+
+            # Record only the small sampling window.
+
+            d = run_local(
+
+                sim,
+
+                duration=(
+
+                    BEATS_TO_LOG
+
+                    * bcl
+
+                ),
+
+                log=[
+
+                    'engine.time',
+
+                    CALCIUM_VAR
+
+                ],
+
+                dt=LOG_INTERVAL
+
+            )
+
+            if d is not None:
+
+                t_local = np.asarray(
+
+                    d['engine.time']
+
+                )
+
+                ca_local = np.asarray(
+
+                    d[CALCIUM_VAR]
+
+                )
+
+                df = (
+
+                    extract_ca_transient_amplitude(
+
+                        t=t_local,
+
+                        ca=ca_local,
+
+                        bcl=bcl
+
+                    )
+
+                )
+
+                if len(df) > 0:
+
+                    sample_index += 1
+
+                    window_start_beats = (
+
+                        phase_elapsed_beats
+
+                        + beats_done
+
+                        + quiet_beats
+
+                    )
+
+                    window_start_ms = (
+
+                        window_start_beats
+
+                        * bcl
+
+                    )
+
+                    df[
+
+                        'phase_time_model_ms'
+
+                    ] = (
+
+                        window_start_ms
+
+                        + df['time']
+
+                    )
+
+                    df[
+
+                        'phase_time_biological_h'
+
+                    ] = (
+
+                        df[
+
+                            'phase_time_model_ms'
+
+                        ]
+
+                        * SPEEDUP
+
+                        / 3600000
+
+                    )
+
+                    df['phase'] = (
+
+                        phase_name
+
+                    )
+
+                    df['freq_Hz'] = (
+
+                        freq
+
+                    )
+
+                    df['sample_index'] = (
+
+                        sample_index
+
+                    )
+
+                    df['segment'] = (
+
+                        segment_name
+
+                    )
+
+                    rows.append(
+
+                        df
+
+                    )
+
+            beats_done += (
+
+                interval_beats
+
+            )
+
+        # Complete any unsampled remainder silently.
+
+        leftover_beats = (
+
+            segment_beats
+
+            - beats_done
+
+        )
+
+        if leftover_beats > 0:
+
+            run_local(
+
+                sim,
+
+                duration=(
+
+                    leftover_beats
+
+                    * bcl
+
+                ),
+
+                log=[]
+
+            )
+
+        phase_elapsed_beats += (
+
+            segment_beats
+
+        )
+
+        print(
+
+            f"  {phase_name} "
+
+            f"{segment_name} done: "
+
+            f"{phase_elapsed_beats * bcl * SPEEDUP / 3600000:.4f} "
+
+            f"biological h"
+
+        )
+
+    if len(rows) == 0:
+
+        return pd.DataFrame()
+
+    return pd.concat(
+
+        rows,
+
+        ignore_index=True
+
+    )
+
+
+# ============================================================
+
+# Record one complete final 1-Hz beat
+
+# ============================================================
+
+def record_final_beat(
+
+    sim,
+
+    freq,
+
+    run_name
+
+):
+
+    """
+
+    Continue directly from the final state of the 24-h phase and
+
+    densely record one additional complete beat.
+
+    This trace is used for:
+
+        AP morphology
+
+        Ca transient morphology
+
+        CaT amplitude
+
+        APD90
+
+        final Active LTCC
+
+    """
+
+    bcl = 1000 / freq
+
+    d = run_local(
+
+        sim,
+
+        duration=bcl,
+
+        log=[
+
+            'engine.time',
+
+            VOLTAGE_VAR,
+
+            CALCIUM_VAR,
+
+            ACTIVE_LTCC_VAR
+
+        ],
+
+        dt=LOG_INTERVAL
+
+    )
+
+    if d is None:
+
+        raise RuntimeError(
+
+            f"No final-beat data returned for {run_name}."
+
+        )
+
+    t = np.asarray(
+
+        d['engine.time']
+
+    )
+
+    v = np.asarray(
+
+        d[VOLTAGE_VAR]
+
+    )
+
+    ca = np.asarray(
+
+        d[CALCIUM_VAR]
+
+    )
+
+    active_ltcc_trace = np.asarray(
+
+        d[ACTIVE_LTCC_VAR]
+
+    )
+
+    if len(t) < 3:
+
+        raise RuntimeError(
+
+            f"Final-beat recording for {run_name} "
+
+            f"contains too few samples."
+
+        )
+
+    ca_tamp = float(
+
+        np.max(ca)
+
+        - np.min(ca)
+
+    )
+
+    apd90 = calculate_apd90(
+
+        t,
+
+        v
+
+    )
+
+    active_ltcc = float(
+
+        active_ltcc_trace[-1]
+
+    )
+
+    df_final = pd.DataFrame({
+
+        'run': run_name,
+
+        'time_ms': t,
+
+        'Vm': v,
+
+        'Ca': ca,
+
+        'Active_LTCC': active_ltcc_trace
+
+    })
+
+    return (
+
+        active_ltcc,
+
+        ca_tamp,
+
+        apd90,
+
+        df_final
+
+    )
+
+
+# ============================================================
+
+# Run one virtual cell
+
+# ============================================================
+
+def run_sensitivity_member(
+
+    run_name,
+
+    population_row,
+
+    hours=SENS_HOURS,
+
+    freq=SENS_FREQ
+
+):
+
+    """
+
+    One population member:
+
+        apply sampled parameter set
+
+        -> 12 h at 0.5 Hz pre-pacing
+
+        -> obtain run-specific pre_state and Active-LTCC reference
+
+        -> 24 h at 1 Hz with SAME sampled parameter set
+
+        -> record one final complete beat
+
+    """
+
+    print("\n" + "=" * 70)
+
+    print(f"Starting {run_name}")
+
+    print("=" * 70)
+
+    # --------------------------------------------------------
+
+    # 1. Population-specific 0.5-Hz pre-pacing
+
+    # --------------------------------------------------------
+
+    (
+
+        pre_state,
+
+        ref_ICaL_Act
+
+    ) = prepace_population_member(
+
+        run_name=run_name,
+
+        population_row=population_row
+
+    )
+
+    # --------------------------------------------------------
+
+    # 2. Continue this SAME virtual cell at 1 Hz
+
+    # --------------------------------------------------------
+
+    sim = make_sim(
+
+        freq=freq,
+
+        state=pre_state,
+
+        population_row=population_row,
+
+        ref_ICaL_Act=ref_ICaL_Act
+
+    )
+
+    # --------------------------------------------------------
+
+    # 3. 24-h 1-Hz adaptation with adaptive sampling
+
+    # --------------------------------------------------------
+
+    df_adaptive = run_phase(
+
+        sim=sim,
+
+        freq=freq,
+
+        hours=hours,
+
+        phase_name=(
+
+            f'sensitivity_{run_name}'
+
+        )
+
+    )
+
+    # --------------------------------------------------------
+
+    # 4. Record one complete final beat
+
+    # --------------------------------------------------------
+
+    (
+
+        active_ltcc,
+
+        ca_tamp,
+
+        apd90,
+
+        df_final
+
+    ) = record_final_beat(
+
+        sim=sim,
+
+        freq=freq,
+
+        run_name=run_name
+
+    )
+
+    summary = {
+
+        'run': run_name,
+
+        'prepace_ref_Active_LTCC': ref_ICaL_Act,
+
+        'Active_LTCC': active_ltcc,
+
+        'CaTamp': ca_tamp,
+
+        'APD90_ms': apd90
+
+    }
+
+    print(f"\n{run_name} completed")
+    print(f"Prepace ref Active LTCC = {ref_ICaL_Act}")
+    print(f"Final Active LTCC       = {active_ltcc}")
+    print(f"CaTamp                  = {ca_tamp}")
+
+    print(f"APD90                   = {apd90} ms")
+
+    return (summary, df_adaptive, df_final)
+
+
+if TEST_MODE:
+
+    # --------------------------------------------------------
+    # Quick workflow test
+    #
+    # Always starts fresh and uses separate quick_test_ files.
+    # It never changes or reads the formal 100-run summary.
+    # --------------------------------------------------------
+
+    runs_to_execute = (
+
+        population_table.iloc[
+
+            :RUN_LIMIT
+
+        ]
+
+    )
+
+    summary_rows = []
+
+    completed_runs = set()
+
+else:
+
+    # --------------------------------------------------------
+    # Formal 100-run mode with automatic resume.
+    #
+    # If sensitivity_outputs.csv already exists, completed runs
+    # are skipped and the script continues with the remaining
+    # population members.
+    # --------------------------------------------------------
+
+    try:
+
+        existing_summary = pd.read_csv(
+
+            SUMMARY_FILE
+
+        )
+
+        if 'run' not in existing_summary.columns:
+
+            raise ValueError(
+
+                f"{SUMMARY_FILE} does not contain a 'run' column."
+
+            )
+
+        # Keep only run IDs that belong to the current population.
+        existing_summary = existing_summary[
+
+            existing_summary['run'].isin(
+
+                population_table.index
+
+            )
+
+        ].copy()
+
+        # Protect against duplicated rows after a previous restart.
+        existing_summary = (
+
+            existing_summary
+
+            .drop_duplicates(
+
+                subset='run',
+
+                keep='last'
+
+            )
+
+            .sort_values('run')
+
+            .reset_index(drop=True)
+
+        )
+
+        completed_runs = set(
+
+            existing_summary['run']
+
+        )
+
+        summary_rows = (
+
+            existing_summary
+
+            .to_dict('records')
+
+        )
+
+        print(
+
+            f"\nResume file found: {SUMMARY_FILE}"
+
+        )
+
+        print(
+
+            f"Completed formal runs: {len(completed_runs)}"
+
+        )
+
+    except FileNotFoundError:
+
+        completed_runs = set()
+
+        summary_rows = []
+
+        print(
+
+            "\nNo formal summary file found. "
+
+            "Starting a fresh 100-run simulation."
+
+        )
+
+    runs_to_execute = population_table.loc[
+
+        ~population_table.index.isin(
+
+            completed_runs
+
+        )
+
+    ]
+
+
+print("\n" + "=" * 70)
+
+if TEST_MODE:
+
+    print("QUICK WORKFLOW TEST")
+
+else:
+
+    print("FORMAL 100-RUN SENSITIVITY ANALYSIS")
+
+print("=" * 70)
+
+print("TEST_MODE:", TEST_MODE)
+
+print("SPEEDUP:", SPEEDUP)
+
+print("Total population size:", len(population_table))
+
+print("Already completed formal runs:", len(completed_runs))
+
+print("Runs to execute now:", len(runs_to_execute))
+
+print("Pre-pacing:", PREPACE_HOURS, "h at", PREPACE_FREQ, "Hz")
+
+print("Adaptation:", SENS_HOURS, "h at", SENS_FREQ, "Hz")
+
+print("Final recording:", 1, "complete beat")
+
+print("Summary file:", SUMMARY_FILE)
+
+print("=" * 70)
+
+
+for (
+
+    run_name,
+
+    population_row
+
+) in runs_to_execute.iterrows():
+
+    (
+
+        summary,
+
+        df_adaptive,
+
+        df_final
+
+    ) = run_sensitivity_member(
+
+        run_name=run_name,
+
+        population_row=population_row
+
+    )
+
+    summary_rows.append(
+
+        summary
+
+    )
+
+    # Save each completed run immediately.
+
+    df_adaptive.to_csv(
+
+        f'{FILE_PREFIX}adaptive_Ca_{run_name}.csv',
+
+        index=False
+
+    )
+
+    df_final.to_csv(
+
+        f'{FILE_PREFIX}final_beat_{run_name}.csv',
+
+        index=False
+
+    )
+
+    # Save/update the summary immediately after every completed run.
+    #
+    # In formal mode this file is also the resume checkpoint.
+
+    summary_df = pd.DataFrame(
+
+        summary_rows
+
+    )
+
+    summary_df = (
+
+        summary_df
+
+        .drop_duplicates(
+
+            subset='run',
+
+            keep='last'
+
+        )
+
+        .sort_values('run')
+
+        .reset_index(drop=True)
+
+    )
+
+    summary_df.to_csv(
+
+        SUMMARY_FILE,
+
+        index=False
+
+    )
+
+    print(
+
+        f"Saved {run_name}. "
+
+        f"Summary now contains {len(summary_df)} run(s)."
+
+    )
+
+
+print("\n" + "=" * 70)
+
+if len(runs_to_execute) == 0:
+
+    print("NO NEW RUNS NEEDED")
+
+else:
+
+    print("ALL REQUESTED RUNS COMPLETED")
+
+print("=" * 70)
+
+print("Summary file:")
+
+print(f"  {SUMMARY_FILE}")
+
+print("Per-run files:")
+
+print(f"  {FILE_PREFIX}adaptive_Ca_run_XXX.csv")
+
+print(f"  {FILE_PREFIX}final_beat_run_XXX.csv")
+
+print()
+
+if TEST_MODE:
+
+    print(
+
+        "QUICK TEST ONLY: these results are not for scientific analysis."
+
+    )
+
+    print(
+
+        "If the test succeeds, set TEST_MODE = False and run again."
+
+    )
+
+else:
+
+    print(
+
+        "Formal scientific simulation used SPEEDUP = 1."
+
+    )
