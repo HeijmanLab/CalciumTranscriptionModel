@@ -1,0 +1,327 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
+from matplotlib.ticker import MultipleLocator
+
+rcParams['font.family'] = 'Arial'
+rcParams['font.size'] = 9
+rcParams['font.weight'] = 'bold'
+rcParams['axes.labelweight'] = 'bold'
+rcParams['mathtext.default'] = 'regular'
+
+width_cm = 17.6
+height_cm = 28
+figsize = (width_cm / 2.54, height_cm / 2.54)
+
+from pathlib import Path
+
+script_dir = Path(__file__).resolve().parent
+data_dir = script_dir.parent / "Data" / "Figure 7"
+df_a = pd.read_csv(
+    data_dir / "Ca_i_amplitude_combine_1Hz_1min_3Hz_20min.csv"
+)
+
+df_b = pd.read_csv(
+    data_dir / "Na_i_combine_1Hz_1min_3Hz_20min.csv"
+)
+
+df_c = pd.read_csv(
+    data_dir / "I_SK_peak_combine_1Hz_1min_3Hz_20min.csv"
+)
+
+df_d = pd.read_csv(
+    data_dir / "I_NaK_peak_combine_1Hz_1min_3Hz_30min.csv"
+)
+
+df_e = pd.read_csv(
+    data_dir / "APD90_combine_1Hz_1min_3Hz_20min.csv"
+)
+
+df_f = pd.read_csv(
+    data_dir / "I_Ca_integral_combine_1Hz_1min_3Hz_20min.csv"
+)
+
+
+
+phase_times = [0, 1, 21]
+phase_labels = ['1 Hz', '3 Hz']
+phase_colors = ['#cccccc', '#999999']
+
+color_with = '#a17db4'
+color_without = '#7c9895'
+
+fig, axes = plt.subplots(6, 1, figsize=figsize)
+
+
+def calculate_ylim(df, columns, margin_fraction=0.1):
+    ymin = df[columns].min().min()
+    ymax = df[columns].max().max()
+
+    margin = (ymax - ymin) * margin_fraction
+
+    return ymin - margin, ymax + margin
+
+
+ylim_cai = calculate_ylim(
+    df_a,
+    [
+        'Ca_i_amplitude_with_transcription',
+        'Ca_i_amplitude_without_transcription'
+    ]
+)
+
+ylim_nai = calculate_ylim(
+    df_b,
+    [
+        'Na_i_with_transcription',
+        'Na_i_without_transcription'
+    ]
+)
+
+ylim_sk = calculate_ylim(
+    df_c,
+    [
+        'peak_I_SK_with_transcription',
+        'peak_I_SK_without_transcription'
+    ]
+)
+
+ylim_inak = calculate_ylim(
+    df_d,
+    [
+        'peak_I_NaK_with_transcription',
+        'peak_I_NaK_without_transcription'
+    ]
+)
+
+ylim_apd = calculate_ylim(
+    df_e,
+    [
+        'apd90_with_transcription',
+        'apd90_without_transcription'
+    ]
+)
+
+ylim_calint = calculate_ylim(
+    df_f,
+    [
+        'I_CaL_entry_integral_with_transcription',
+        'I_CaL_entry_integral_without_transcription'
+    ]
+)
+
+
+def plot_block(ax, x, y_with, y_without, ylabel, ylim):
+    for i in range(2):
+        ax.axvspan(
+            phase_times[i],
+            phase_times[i + 1],
+            color=phase_colors[i],
+            alpha=0.4,
+            linewidth=0
+        )
+
+        if ax is axes[0]:
+            ax.text(
+                (phase_times[i] + phase_times[i + 1]) / 2,
+                1.005,
+                phase_labels[i],
+                transform=ax.get_xaxis_transform(),
+                ha='center',
+                va='bottom',
+                fontweight='bold'
+            )
+
+    ax.plot(
+        x,
+        y_with,
+        color=color_with,
+        linewidth=1.5,
+        linestyle='-',
+        label='with transcription'
+    )
+
+    ax.plot(
+        x,
+        y_without,
+        color=color_without,
+        linewidth=1.5,
+        linestyle='--',
+        label='without transcription'
+    )
+
+    ax.set_ylabel(
+        ylabel,
+        fontweight='bold',
+        fontsize=9
+    )
+
+    ax.set_ylim(ylim)
+    ax.set_xlim(0, 21)
+
+    ax.xaxis.set_major_locator(MultipleLocator(5))
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+
+    ax.tick_params(
+        axis='both',
+        which='major',
+        length=6,
+        width=1.2
+    )
+
+    ax.tick_params(
+        axis='both',
+        which='minor',
+        length=3,
+        width=0.8
+    )
+
+    for spine in ax.spines.values():
+        spine.set_linewidth(1)
+
+
+plot_block(
+    axes[0],
+    df_a['time_min'],
+    df_a['Ca_i_amplitude_with_transcription'],
+    df_a['Ca_i_amplitude_without_transcription'],    
+    r"$\Delta[\mathrm{Ca}^{2+}]_{\mathrm{i}}$ (nM)",
+    ylim_cai
+)
+
+plot_block(
+    axes[1],
+    df_b['time_min'],
+    df_b['Na_i_with_transcription'],
+    df_b['Na_i_without_transcription'],
+    r"$[\mathrm{Na}^{+}]_{\mathrm{i}}$ (mM)",
+    ylim_nai
+)
+
+plot_block(
+    axes[2],
+    df_c['time_min'],
+    df_c['peak_I_SK_with_transcription'],
+    df_c['peak_I_SK_without_transcription'],
+    r"Peak $\mathrm{I}_{\mathrm{SK}}$ (pA/pF)",
+    ylim_sk
+)
+
+plot_block(
+    axes[3],
+    df_d['time_min'],
+    df_d['peak_I_NaK_with_transcription'],
+    df_d['peak_I_NaK_without_transcription'],
+    r"Peak $\mathrm{I}_{\mathrm{NaK}}$ (pA/pF)",
+    ylim_inak
+)
+
+plot_block(
+    axes[4],
+    df_e['time_min'],
+    df_e['apd90_with_transcription'],
+    df_e['apd90_without_transcription'],
+    r"$\mathrm{APD}_{90}$ (ms)",
+    ylim_apd
+)
+
+plot_block(
+    axes[5],
+    df_f['time_min'],
+    df_f['I_CaL_entry_integral_with_transcription'],
+    df_f['I_CaL_entry_integral_without_transcription'],
+    (
+        r"$\mathrm{I}_{\mathrm{Ca,L}}$ Entry Integral"
+        "\n"
+        r"(pA$\cdot$ms/pF)"
+    ),
+    ylim_calint
+)
+
+ytick_settings = [
+    (100, 50),
+    (2, 1),
+    (0.02, 0.01),
+    (0.1, 0.05),
+    (20, 10),
+    (50, 25)
+]
+
+for ax, (major, minor) in zip(axes, ytick_settings):
+    ax.yaxis.set_major_locator(MultipleLocator(major))
+    ax.yaxis.set_minor_locator(MultipleLocator(minor))
+
+    ax.tick_params(
+        axis='y',
+        which='major',
+        length=4,
+        width=0.8
+    )
+
+    ax.tick_params(
+        axis='y',
+        which='minor',
+        length=2,
+        width=0.6
+    )
+
+axes[0].legend(
+    loc='lower right',
+    frameon=False,
+    fontsize=9,
+    handlelength=3
+)
+
+fig.subplots_adjust(
+    left=0.17,
+    right=0.97,
+    hspace=0.4,
+    bottom=0.12,
+    top=0.9
+)
+
+fig.text(
+    0.57,
+    0.07,
+    "Time (min)",
+    ha='center',
+    va='top',
+    fontsize=10,
+    fontweight='bold'
+)
+
+panel_positions = [
+    (0.05, 0.92, 'A'),
+    (0.05, 0.77, 'B'),
+    (0.05, 0.64, 'C'),
+    (0.05, 0.50, 'D'),
+    (0.05, 0.36, 'E'),
+    (0.05, 0.22, 'F')
+]
+
+for x, y, label in panel_positions:
+    fig.text(
+        x,
+        y,
+        label,
+        fontsize=10,
+        fontweight='bold',
+        ha='left',
+        va='top'
+    )
+
+from pathlib import Path
+script_dir = Path(__file__).resolve().parent
+output_dir = script_dir / "Output"
+output_dir.mkdir(parents=True, exist_ok=True)
+
+save_path = output_dir / "figure 7.jpg"
+
+plt.savefig(
+    save_path,
+    dpi=1000,
+    format='jpg',
+    bbox_inches='tight'
+)
+
+plt.show()
