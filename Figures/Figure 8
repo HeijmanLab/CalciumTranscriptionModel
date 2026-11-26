@@ -1,0 +1,153 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
+from matplotlib.ticker import MultipleLocator
+
+rcParams['font.family'] = 'Arial'
+rcParams['font.size'] = 9
+rcParams['font.weight'] = 'bold'
+
+from pathlib import Path
+script_dir = Path(__file__).resolve().parent
+data_dir = script_dir.parent / "Data" / "Figure 8"
+df_a = pd.read_csv(data_dir / "ICaL_peak_integral_combine_1Hz_3Hz_1Hz.csv")
+df_b = pd.read_csv(data_dir / "CaT_amplitude_1Hz_3Hz_1Hz.csv")
+df_c = pd.read_csv(data_dir / "APD90_combine_1Hz_3Hz_1Hz.csv")
+df_d = pd.read_csv(data_dir / "Active_LTCC_1Hz_3Hz_1Hz.csv")
+
+
+phase_times = [0, 24, 48, 72]
+phase_labels = ['1 Hz', '3 Hz', '1 Hz']
+phase_colors = ['#cccccc', '#999999', '#cccccc']
+
+width_cm = 17.6
+height_cm = 28  
+figsize = (width_cm / 2.54, height_cm / 2.54)
+
+fig, axes = plt.subplots(5, 1, figsize=figsize)
+
+ymax_ic = df_a[['I_CaL_entry_integral_baseline', 'I_CaL_entry_integral_LTCC_blocker', 'I_CaL_entry_integral_NaK_pump_blocker']].max().max()
+ymin_ic = df_a[['I_CaL_entry_integral_baseline', 'I_CaL_entry_integral_LTCC_blocker', 'I_CaL_entry_integral_NaK_pump_blocker']].min().min()
+y_margin_ic = (ymax_ic - ymin_ic) * 0.1
+ymax_ic += y_margin_ic
+ymin_ic -= y_margin_ic
+
+ymax_apd = df_c[['apd90_baseline', 'apd90_LTCC_blocker', 'apd90_NaK_pump_blocker']].max().max()
+ymin_apd = df_c[['apd90_baseline', 'apd90_LTCC_blocker', 'apd90_NaK_pump_blocker']].min().min()
+y_margin_apd = (ymax_apd - ymin_apd) * 0.1
+ymax_apd += y_margin_apd
+ymin_apd -= y_margin_apd
+
+def plot_block(ax, x, y_list, labels, colors, ylabel=None, ylim=None):
+    for i in range(3):
+        ax.axvspan(phase_times[i], phase_times[i+1], color=phase_colors[i], alpha=0.4)
+        ax.text((phase_times[i]+phase_times[i+1])/2, 1.005, phase_labels[i],
+                transform=ax.get_xaxis_transform(), ha='center', va='bottom', weight='bold', fontsize=10)
+    for y, label, color in zip(y_list, labels, colors):
+        ax.plot(x, y, color=color, label=label, linewidth=1.5)
+    if ylabel:
+        ax.set_ylabel(ylabel, fontweight='bold')
+    if ylim:
+        ax.set_ylim(ylim)
+    ax.set_xlim(0, 72)
+    ax.xaxis.set_major_locator(MultipleLocator(12))
+    ax.xaxis.set_minor_locator(MultipleLocator(6))
+    ax.tick_params(axis='both', which='major', length=6, width=1.2)
+    ax.tick_params(axis='both', which='minor', length=3, width=0.8)
+    for spine in ax.spines.values():
+        spine.set_linewidth(1)
+
+plot_block(
+    axes[0],
+    df_a['time_hr'],
+    [df_a['I_CaL_entry_integral_baseline'], df_a['I_CaL_entry_integral_LTCC_blocker'], df_a['I_CaL_entry_integral_NaK_pump_blocker']],
+    ['baseline', '30% LTCC\nblocker', '30% NaK\npump blocker'],
+    ['#a17db4', '#7c9895', '#8ea5c8'],
+    r"I$_{Ca,L}$ Entry Integral (pA·ms/pF)",
+    (ymin_ic, ymax_ic)
+)
+
+plot_block(
+    axes[1],
+    df_b['time_hr'],
+    [df_b['Calcium_transient_amplitude_baseline'], df_b['Calcium_transient_amplitude_LTCC_blocker'], df_b['Calcium_transient_amplitude_NaK_pump_blocker']],
+    ['baseline', '30% LTCC\nblocker', '30% NaK\npump blocker'],
+    ['#a17db4', '#7c9895', '#8ea5c8'],  
+    r"$\mathrm{\Delta[Ca^{2+}]_i}$ (nM)",
+    (0, None)
+)
+
+
+plot_block(
+    axes[2],
+    df_c['time_hr'],
+    [df_c['apd90_baseline'], df_c['apd90_LTCC_blocker'], df_c['apd90_NaK_pump_blocker']],
+    ['baseline with\ntranscription', '30% LTCC blocker\nwith transcription', '30% NaK pump blocker\nwith transcription'],
+    ['#a17db4', '#7c9895', '#8ea5c8'],
+    r"$\mathrm{APD}_{90}$ (ms)",
+    (ymin_apd, ymax_apd)
+)
+
+plot_block(
+    axes[3],
+    df_d['time_hr'],
+    [df_d['Relative_Active_LTCC_baseline'], df_d['Relative_Active_LTCC_LTCC_blocker'], df_d['Relative_Active_LTCC_NaK_pump_blocker']],
+    ['baseline with\ntranscription', '30% LTCC blocker\nwith transcription', '30% NaK pump blocker\nwith transcription'],
+    ['#a17db4', '#7c9895', '#8ea5c8'],
+    "Relative Active LTCC Levels\n(% of 1 Hz at time = 0)",
+    (50, None)
+)
+
+axC = axes[2]
+axD = axes[3]
+axE = axes[4]
+
+axD.set_xlabel("Time (h)", fontweight='bold')
+axD.xaxis.set_label_coords(0.5, -0.25)
+
+axE.set_xlabel("Time (h)", fontweight='bold')
+axE.xaxis.set_label_coords(0.53, -0.05)
+
+axE.set_xticks([])
+axE.set_yticks([])
+
+for spine in axE.spines.values():
+    spine.set_visible(False)
+
+lines_a = [
+    plt.Line2D([0], [0], color='#a17db4', lw=1.5, label='Baseline'),
+    plt.Line2D([0], [0], color='#7c9895', lw=1.5, label='30% LTCC\nBlocker'),
+    plt.Line2D([0], [0], color='#8ea5c8', lw=1.5, label='30% Na$^+$/K$^+$\nPump Blocker')
+]
+fig.legend(handles=lines_a, loc='center left', bbox_to_anchor=(0.78, 0.5), frameon=False, fontsize=9)
+
+
+fig.text(0.01, 0.98, "A", fontsize=10, fontweight='bold', ha='left', va='top')
+fig.text(0.01, 0.78, "B", fontsize=10, fontweight='bold', ha='left', va='top')
+fig.text(0.01, 0.59, "C", fontsize=10, fontweight='bold', ha='left', va='top')
+fig.text(0.01, 0.39, "D", fontsize=10, fontweight='bold', ha='left', va='top')
+fig.text(0.01, 0.19, "E", fontsize=10, fontweight='bold', ha='left', va='top')
+
+from pathlib import Path
+
+script_dir = Path(__file__).resolve().parent
+output_dir = script_dir / "Output"
+output_dir.mkdir(parents=True, exist_ok=True)
+fig.subplots_adjust(
+    left=0.14,
+    right=0.78,
+    top=0.96,
+    bottom=0.04,
+    hspace=0.38,
+    wspace=0.33
+)
+
+save_path = output_dir / "figure 8 without panel E.jpg"
+
+plt.savefig(
+    save_path,
+    dpi=1000,
+    format='jpg'
+)
+
+plt.show()
