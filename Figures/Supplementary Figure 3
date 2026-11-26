@@ -1,0 +1,236 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
+from matplotlib.ticker import MultipleLocator
+
+rcParams['font.family'] = 'Arial'
+rcParams['font.size'] = 10
+rcParams['font.weight'] = 'bold'
+rcParams['axes.labelweight'] = 'bold'
+
+width_cm = 17.6
+height_cm = 21
+figsize = (width_cm / 2.54, height_cm / 2.54)
+
+from pathlib import Path
+script_dir = Path(__file__).resolve().parent
+data_dir = script_dir.parent / "Data" / "Supplements Figure 3"
+df_a = pd.read_csv(data_dir / "ICaL_integral_1Hz_3Hz.csv")
+df_b = pd.read_csv(data_dir / "CaT_amplitude_1Hz_3Hz.csv")
+df_c = pd.read_csv(data_dir / "APD90_1Hz_3Hz.csv")
+
+
+phase_times = [0, 24, 96]
+phase_labels = ['1 Hz', '3 Hz']
+phase_colors = ['#cccccc', '#999999']
+
+color_with = '#a17db4'
+color_without = '#7c9895'
+
+fig, axes = plt.subplots(3, 1, figsize=figsize)
+
+ymax_ic = df_a[
+    [
+        'I_CaL_entry_integral_with_transcription',
+        'I_CaL_entry_integral_without_transcription'
+    ]
+].max().max()
+
+ymin_ic = df_a[
+    [
+        'I_CaL_entry_integral_with_transcription',
+        'I_CaL_entry_integral_without_transcription'
+    ]
+].min().min()
+
+y_margin_ic = (ymax_ic - ymin_ic) * 0.1
+ymax_ic += y_margin_ic
+ymin_ic -= y_margin_ic
+
+ymax_apd = df_c[
+    [
+        'apd90_with_transcription',
+        'apd90_without_transcription'
+    ]
+].max().max()
+
+ymin_apd = df_c[
+    [
+        'apd90_with_transcription',
+        'apd90_without_transcription'
+    ]
+].min().min()
+
+y_margin_apd = (ymax_apd - ymin_apd) * 0.1
+ymax_apd += y_margin_apd
+ymin_apd -= y_margin_apd
+
+
+def plot_block(ax, x, y_with, y_without, ylabel=None, ylim=None):
+    for i in range(2):
+        ax.axvspan(
+            phase_times[i],
+            phase_times[i + 1],
+            color=phase_colors[i],
+            alpha=0.4,
+            linewidth=0
+        )
+
+        ax.text(
+            (phase_times[i] + phase_times[i + 1]) / 2,
+            1.005,
+            phase_labels[i],
+            transform=ax.get_xaxis_transform(),
+            ha='center',
+            va='bottom',
+            fontweight='bold'
+        )
+
+    ax.plot(
+        x,
+        y_with,
+        color=color_with,
+        linewidth=1.5,
+        linestyle='-',
+        label='with transcription'
+    )
+
+    ax.plot(
+        x,
+        y_without,
+        color=color_without,
+        linewidth=1.5,
+        linestyle='--',
+        label='without transcription'
+    )
+
+    if ylabel is not None:
+        ax.set_ylabel(ylabel, fontweight='bold')
+
+    if ylim is not None:
+        ax.set_ylim(ylim)
+
+    ax.set_xlim(0, 96)
+    ax.xaxis.set_major_locator(MultipleLocator(24))
+    ax.xaxis.set_minor_locator(MultipleLocator(6))
+
+    ax.tick_params(
+        axis='both',
+        which='major',
+        length=6,
+        width=1.2
+    )
+
+    ax.tick_params(
+        axis='both',
+        which='minor',
+        length=3,
+        width=0.8
+    )
+
+    for spine in ax.spines.values():
+        spine.set_linewidth(1)
+
+
+plot_block(
+    axes[0],
+    df_a['time_hr'],
+    df_a['I_CaL_entry_integral_with_transcription'],
+    df_a['I_CaL_entry_integral_without_transcription'],
+    ylabel=(
+        r"$\mathrm{I_{Ca,L}}$ Entry Integral"
+        "\n"
+        r"(pA$\cdot$ms/pF)"
+    ),
+    ylim=(ymin_ic, ymax_ic)
+)
+
+plot_block(
+    axes[1],
+    df_b['time_hr'],
+    df_b['Calcium_amplitude_with_transcription'],
+    df_b['Calcium_amplitude_without_transcription'],
+    ylabel=r"$\mathrm{\Delta[Ca^{2+}]_i}$ (nM)",
+    ylim=(0, None)
+)
+
+plot_block(
+    axes[2],
+    df_c['time_hr'],
+    df_c['apd90_with_transcription'],
+    df_c['apd90_without_transcription'],
+    ylabel=r"$\mathrm{APD}_{90}$ (ms)",
+    ylim=(ymin_apd, ymax_apd)
+)
+
+axes[0].legend(
+    loc='upper right',
+    frameon=False,
+    fontsize=9,
+    handlelength=3
+)
+
+fig.subplots_adjust(
+    left=0.14,
+    right=0.97,
+    hspace=0.4,
+    bottom=0.12,
+    top=0.9
+)
+
+fig.text(
+    0.555,
+    0.07,
+    "Time (h)",
+    ha='center',
+    va='top',
+    fontsize=10,
+    fontweight='bold'
+)
+
+fig.text(
+    0.03,
+    0.93,
+    "A",
+    fontsize=10,
+    fontweight='bold',
+    ha='left',
+    va='top'
+)
+
+fig.text(
+    0.03,
+    0.65,
+    "B",
+    fontsize=10,
+    fontweight='bold',
+    ha='left',
+    va='top'
+)
+
+fig.text(
+    0.03,
+    0.35,
+    "C",
+    fontsize=10,
+    fontweight='bold',
+    ha='left',
+    va='top'
+)
+
+
+from pathlib import Path
+script_dir = Path(__file__).resolve().parent
+output_dir = script_dir / "Output" / "Supplements Figure 3"
+output_dir.mkdir(parents=True, exist_ok=True)
+save_path = output_dir / "s3.jpg"
+
+
+plt.savefig(
+    save_path,
+    dpi=1000,
+    format='jpg',
+    bbox_inches='tight'
+)
+
+plt.show()
